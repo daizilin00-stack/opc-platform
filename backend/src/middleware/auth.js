@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { pool } = require('../db/pool');
+const pool = require('../db/pool');
 const logger = require('../utils/logger');
 
 // 解析并验证 JWT

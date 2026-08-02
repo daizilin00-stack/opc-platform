@@ -3,7 +3,7 @@ const router = express.Router();
 const { authenticate, requireCompanyAuth } = require('../middleware/auth');
 const { chatCompletion, chatCompletionStream, MODEL_CONFIGS, estimateTokens } = require('../services/modelProxy');
 const { calculateTokenCost } = require('../config/pricing');
-const { pool } = require('../db/pool');
+const pool = require('../db/pool');
 const logger = require('../utils/logger');
 
 // ============================================================

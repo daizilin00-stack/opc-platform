@@ -1,4 +1,4 @@
-const { pool } = require('../db/pool');
+const pool = require('../db/pool');
 const logger = require('../utils/logger');
 
 // 检查账户余额是否足够
