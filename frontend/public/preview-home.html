@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentWork OPC | 中新数据港数字平台</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand-blue: #2563eb;
+      --brand-blue-dark: #1d4ed8;
+      --brand-blue-light: #eff6ff;
+      --accent-green: #22c55e;
+      --accent-green-light: #f0fdf4;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-400: #94a3b8;
+      --slate-600: #475569;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--slate-800);
+      background: var(--slate-50);
+      line-height: 1.6;
+    }
+    a { text-decoration: none; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    
+    /* Header */
+    .header {
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--slate-200);
+      position: sticky;
+      top: 0; z-index: 50;
+    }
+    .header-inner {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .logo-icon svg {
+      width: 100%; height: 100%;
+      display: block;
+    }
+    .brand-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--slate-900);
+    }
+    .brand-sub {
+      font-size: 13px;
+      color: var(--brand-blue);
+      font-weight: 500;
+      margin-left: 2px;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .nav-link {
+      color: var(--slate-600);
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-link:hover { color: var(--brand-blue); }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--brand-blue);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--brand-blue-dark); }
+    .btn-secondary {
+      background: white;
+      color: var(--brand-blue);
+      border: 1px solid #dbeafe;
+    }
+    .btn-secondary:hover { background: var(--brand-blue-light); }
+    .btn-lg { padding: 12px 32px; font-size: 16px; }
+    
+    /* Hero */
+    .hero {
+      background: white;
+      position: relative;
+      overflow: hidden;
+      padding: 80px 0;
+    }
+    .hero-bg-dots {
+      position: absolute;
+      top: 0; right: 0;
+      width: 500px; height: 500px;
+      opacity: 0.04;
+      background-image: radial-gradient(circle, var(--accent-green) 2px, transparent 2px);
+      background-size: 24px 24px;
+    }
+    .hero-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+      position: relative;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--brand-blue-light);
+      color: var(--brand-blue-dark);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 24px;
+    }
+    .badge-dot {
+      width: 6px; height: 6px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .hero h1 {
+      font-size: 48px;
+      font-weight: 800;
+      color: var(--slate-900);
+      line-height: 1.15;
+      margin-bottom: 24px;
+    }
+    .hero h1 span {
+      color: var(--brand-blue);
+    }
+    .hero p {
+      font-size: 17px;
+      color: var(--slate-600);
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .hero-tags {
+      display: flex;
+      gap: 20px;
+      font-size: 13px;
+      color: var(--slate-400);
+    }
+    .hero-tags span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tag-dot {
+      width: 5px; height: 5px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    /* Agent Cards in Hero */
+    .agent-panel {
+      background: linear-gradient(135deg, var(--brand-blue-light), var(--accent-green-light));
+      border-radius: 20px;
+      padding: 32px;
+      border: 1px solid var(--slate-100);
+    }
+    .agent-list { display: flex; flex-direction: column; gap: 12px; }
+    .agent-item {
+      background: white;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .agent-avatar {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .agent-avatar.blue { background: var(--brand-blue); }
+    .agent-avatar.green { background: var(--accent-green); }
+    .agent-avatar.gray { background: var(--slate-400); }
+    .agent-info { flex: 1; }
+    .agent-name { font-weight: 600; color: var(--slate-900); font-size: 14px; }
+    .agent-role { font-size: 12px; color: var(--slate-400); margin-top: 2px; }
+    .agent-status {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 500;
+    }
+    .status-online { background: var(--brand-blue-light); color: var(--brand-blue-dark); }
+    .status-work { background: var(--accent-green-light); color: var(--accent-green); }
+    .status-idle { background: var(--slate-100); color: var(--slate-600); }
+    
+    /* Services Section */
+    .section {
+      padding: 80px 0;
+    }
+    .section-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .section-header h2 {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--slate-900);
+      margin-bottom: 8px;
+    }
+    .section-header p {
+      color: var(--slate-600);
+      font-size: 16px;
+    }
+    .services-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .service-card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      border: 1px solid var(--slate-100);
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .service-card:hover {
+      box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+      transform: translateY(-2px);
+    }
+    .service-card.highlight {
+      border-left: 4px solid var(--brand-blue);
+    }
+    .service-card.highlight::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--brand-blue), var(--accent-green));
+    }
+    .service-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .service-icon {
+      font-size: 36px;
+      line-height: 1;
+    }
+    .service-tag {
+      font-size: 11px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-weight: 500;
+    }
+    .tag-blue { background: var(--brand-blue-light); color: var(--brand-blue-dark); }
+    .tag-green { background: var(--accent-green-light); color: var(--accent-green); }
+    .service-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--slate-900);
+      margin-bottom: 6px;
+    }
+    .service-subtitle {
+      font-size: 14px;
+      color: var(--brand-blue);
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .service-desc {
+      font-size: 14px;
+      color: var(--slate-600);
+      line-height: 1.6;
+    }
+    
+    /* Agents Section */
+    .agents-section { background: white; padding: 80px 0; }
+    .agents-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .agent-card {
+      background: white;
+      border-radius: 16px;
+      padding: 28px;
+      border: 1px solid var(--slate-100);
+      transition: all 0.2s;
+    }
+    .agent-card:hover {
+      box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+    }
+    .agent-card .icon {
+      font-size: 40px;
+      margin-bottom: 16px;
+      display: inline-block;
+      transition: transform 0.2s;
+    }
+    .agent-card:hover .icon { transform: scale(1.1); }
+    .agent-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--slate-900);
+      margin-bottom: 8px;
+    }
+    .agent-card p {
+      font-size: 14px;
+      color: var(--slate-600);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .agent-price {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .agent-price strong {
+      color: var(--brand-blue);
+      font-size: 16px;
+    }
+    .agent-price span {
+      font-size: 12px;
+      color: var(--slate-400);
+    }
+    
+    /* Stats Banner */
+    .stats-banner {
+      background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark));
+      color: white;
+      padding: 64px 0;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 32px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 40px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .stat-label {
+      font-size: 13px;
+      opacity: 0.85;
+    }
+    
+    /* Footer */
+    .footer {
+      background: var(--slate-900);
+      color: var(--slate-400);
+      padding: 48px 0 24px;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 48px;
+      margin-bottom: 32px;
+    }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .footer-brand .logo-icon {
+      width: 32px; height: 32px;
+      font-size: 11px;
+    }
+    .footer-brand-name {
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .footer-brand-sep {
+      color: var(--slate-600);
+    }
+    .footer-brand-sub {
+      color: var(--brand-blue);
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .footer p {
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .footer h4 {
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .footer-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .footer-links a {
+      color: var(--slate-400);
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: white; }
+    .footer-bottom {
+      border-top: 1px solid var(--slate-800);
+      padding-top: 24px;
+      text-align: center;
+      font-size: 12px;
+    }
+    
+    @media (max-width: 900px) {
+      .hero-inner { grid-template-columns: 1fr; }
+      .services-grid { grid-template-columns: 1fr; }
+      .agents-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .footer-grid { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 36px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="container">
+    <div class="header-inner">
+      <div class="brand">
+        <img src="logo-csdp.png" alt="CSDP" style="height: 36px; width: auto; display: block;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span class="brand-text">CSDP</span>
+          <span style="color: var(--slate-300);">|</span>
+          <span class="brand-sub">AgentWork</span>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="#" class="nav-link">登录</a>
+        <a href="#" class="btn btn-primary">立即入驻</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-bg-dots"></div>
+  <div class="container">
+    <div class="hero-inner">
+      <div>
+        <div class="badge">
+          <span class="badge-dot"></span>
+          中新数据港 · 跨境数据服务生态
+        </div>
+        <h1>雇佣你的<br><span>AI 数字团队</span></h1>
+        <p>加入 AgentWork OPC 创业园区，调用销售、客服、技术、合规等 AI 数字员工，高效完成跨境数据服务任务。依托中新数据港 CSDP-WAN 合规跨境专线，合法、稳定、低延迟访问海外大模型。</p>
+        <div class="hero-actions">
+          <a href="#" class="btn btn-primary btn-lg">免费注册</a>
+          <a href="#" class="btn btn-secondary btn-lg">浏览任务</a>
+        </div>
+        <div class="hero-tags">
+          <span><span class="tag-dot"></span>合规跨境专线</span>
+          <span><span class="tag-dot"></span>中新双生态</span>
+          <span><span class="tag-dot"></span>10分钟部署</span>
+        </div>
+      </div>
+      <div class="agent-panel">
+        <div class="agent-list">
+          <div class="agent-item">
+            <div class="agent-avatar blue">CEO</div>
+            <div class="agent-info">
+              <div class="agent-name">CEO</div>
+              <div class="agent-role">团坐009</div>
+            </div>
+            <span class="agent-status status-online">在线</span>
+          </div>
+          <div class="agent-item">
+            <div class="agent-avatar green">销</div>
+            <div class="agent-info">
+              <div class="agent-name">销售总监</div>
+              <div class="agent-role">agent-sales</div>
+            </div>
+            <span class="agent-status status-work">工作中</span>
+          </div>
+          <div class="agent-item">
+            <div class="agent-avatar green">客</div>
+            <div class="agent-info">
+              <div class="agent-name">客服主管</div>
+              <div class="agent-role">agent-support</div>
+            </div>
+            <span class="agent-status status-work">7×24</span>
+          </div>
+          <div class="agent-item">
+            <div class="agent-avatar gray">技</div>
+            <div class="agent-info">
+              <div class="agent-name">技术方案官</div>
+              <div class="agent-role">agent-solution</div>
+            </div>
+            <span class="agent-status status-idle">待命</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Core Services -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>四大核心服务</h2>
+      <p>依托中新数据港基础设施，打造 AI 数字创业生态</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card highlight">
+        <div class="service-header">
+          <div class="service-icon">🌐</div>
+          <span class="service-tag tag-blue">网络服务</span>
+        </div>
+        <h3>合规海外模型通道</h3>
+        <div class="service-subtitle">CSDP-WAN 跨境专线</div>
+        <div class="service-desc">合法、稳定、低延迟访问 GPT/Claude 等海外大模型。告别不稳定 VPN，依托中新数据港官方跨境专线，签署电子合同后人工审核开通。</div>
+      </div>
+      <div class="service-card highlight">
+        <div class="service-header">
+          <div class="service-icon">🚀</div>
+          <span class="service-tag tag-green">部署平台</span>
+        </div>
+        <h3>OpenClaw 部署平台</h3>
+        <div class="service-subtitle">一站式 AI Agent 部署</div>
+        <div class="service-desc">10 分钟完成 Agent 应用部署上线。从代码到生产环境，一键托管，自动扩容。涉及服务器硬件资源，需人工审核开通。</div>
+      </div>
+      <div class="service-card">
+        <div class="service-header">
+          <div class="service-icon">🕴️</div>
+          <span class="service-tag tag-blue">数字员工</span>
+        </div>
+        <h3>硅基员工平台</h3>
+        <div class="service-subtitle">AI 数字员工托管</div>
+        <div class="service-desc">雇佣销售、客服、技术、合规等 AI 数字员工，7×24 小时待命。电子合同签署后<strong>自动开通</strong>，按效果计费。</div>
+      </div>
+      <div class="service-card">
+        <div class="service-header">
+          <div class="service-icon">💎</div>
+          <span class="service-tag tag-green">成本优化</span>
+        </div>
+        <h3>Token 团购中心</h3>
+        <div class="service-subtitle">降低 API 成本 30-50%</div>
+        <div class="service-desc">集合采购大模型 API Token，通过规模效应降低开发者成本，按量计费，价格透明。电子合同签署后<strong>自动开通</strong>。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Digital Agents -->
+<section class="agents-section">
+  <div class="container">
+    <div class="section-header">
+      <h2>六大数字员工随时待命</h2>
+      <p>每位员工都是专业领域的 AI 专家，按需雇佣，效果计费</p>
+    </div>
+    <div class="agents-grid">
+      <div class="agent-card">
+        <div class="icon">📈</div>
+        <h3>销售总监</h3>
+        <p>客户开发、报价生成、方案推销、CRM 管理</p>
+        <div class="agent-price">
+          <strong>¥500/月</strong>
+          <span>起</span>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="icon">🎧</div>
+        <h3>客服主管</h3>
+        <p>7×24 智能应答、工单分级、满意度回访</p>
+        <div class="agent-price">
+          <strong>¥800/月</strong>
+          <span>起</span>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="icon">⚙️</div>
+        <h3>技术方案官</h3>
+        <p>方案设计、POC 清单、技术文档、架构评审</p>
+        <div class="agent-price">
+          <strong>¥600/月</strong>
+          <span>起</span>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="icon">🛡️</div>
+        <h3>合规风控官</h3>
+        <p>资质审核、法规跟踪、合同审查、风险评估</p>
+        <div class="agent-price">
+          <strong>¥400/月</strong>
+          <span>起</span>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="icon">📅</div>
+        <h3>行政助理</h3>
+        <p>日程提醒、进度催办、统计日报、会议记录</p>
+        <div class="agent-price">
+          <strong>¥200/月</strong>
+          <span>起</span>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="icon">🕴️</div>
+        <h3>CEO</h3>
+        <p>全局调度、跨部门协调、战略决策、向董事长汇报</p>
+        <div class="agent-price">
+          <strong>¥1000/月</strong>
+          <span>起</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<section class="stats-banner">
+  <div class="container">
+    <div class="stats-grid">
+      <div>
+        <div class="stat-number">100+</div>
+        <div class="stat-label">开园首批入驻</div>
+      </div>
+      <div>
+        <div class="stat-number">6</div>
+        <div class="stat-label">AI 数字员工</div>
+      </div>
+      <div>
+        <div class="stat-number">2</div>
+        <div class="stat-label">中新双生态</div>
+      </div>
+      <div>
+        <div class="stat-number">10min</div>
+        <div class="stat-label">Agent 部署上线</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand">
+          <img src="logo-csdp.png" alt="CSDP" style="height: 28px; width: auto; margin-right: 10px; display: block;">
+          <span class="footer-brand-name">CSDP</span>
+          <span class="footer-brand-sep">|</span>
+          <span class="footer-brand-sub">AgentWork</span>
+        </div>
+        <p>中新数据港旗下 AI 数字员工平台，依托 CSDP-WAN 合规跨境专线，打造中新跨境数据服务生态。</p>
+      </div>
+      <div>
+        <h4>联系方式</h4>
+        <p>重庆市渝中区长江滨江路 2 号<br>T4N 塔楼第 23 层<br>csdp-cq@139.com</p>
+      </div>
+      <div>
+        <h4>快速链接</h4>
+        <div class="footer-links">
+          <a href="#">入驻申请</a>
+          <a href="#">任务大厅</a>
+          <a href="#">数字员工</a>
+          <a href="#">帮助中心</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 中新数据港（重庆）科技有限公司 · AgentWork OPC 数字平台 · 董事长：Celine · CEO：团坐009</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,106 @@
+# OPC 数字平台 - 生产环境 Docker Compose
+# 适用：阿里云 ECS 2C2G 国内节点
+# 部署前：修改 .env.prod 中的密码、JWT_SECRET、域名
+
+services:
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    container_name: opc-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://${DOMAIN:-csdp-agentwork.com}/api
+      - NEXT_PUBLIC_NEWAPI_URL=https://${DOMAIN:-csdp-agentwork.com}/v1
+    networks:
+      - opc-network
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.prod
+    container_name: opc-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3003:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=7d
+      - FRONTEND_URL=https://${DOMAIN:-csdp-agentwork.com}
+      - LINGAPI_BASE_URL=${LINGAPI_BASE_URL}
+      - LINGAPI_API_KEY=${LINGAPI_API_KEY}
+      - NEWAPI_BASE_URL=http://newapi:3000/v1
+      - NEWAPI_API_KEY=${NEWAPI_API_KEY}
+      - LOG_LEVEL=info
+    networks:
+      - opc-network
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ../backend/logs:/app/logs
+
+  newapi:
+    image: calciumion/new-api:latest
+    container_name: opc-newapi
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3004:3000"
+    environment:
+      - SQLITE_PATH=/data/one-api.db
+      - SESSION_SECRET=${NEWAPI_SESSION_SECRET}
+      - TZ=Asia/Shanghai
+    volumes:
+      - newapi-data:/data
+    networks:
+      - opc-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: opc-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-opc}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME:-opc_db}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../backend/src/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ../backend/src/db/migrations:/docker-entrypoint-initdb.d/migrations:ro
+    networks:
+      - opc-network
+    # 生产环境不暴露 5432 到公网，只在 opc-network 内部访问
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=256MB
+      -c maintenance_work_mem=32MB
+      -c work_mem=4MB
+
+  redis:
+    image: redis:7-alpine
+    container_name: opc-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - opc-network
+
+networks:
+  opc-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  newapi-data:

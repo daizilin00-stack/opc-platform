@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # 后端 API 服务
+  backend:
+    build: ./backend
+    container_name: opc-backend
+    ports:
+      - "3003:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=postgresql://opc:opc_dev_2026@postgres:5432/opc_db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=opc-jwt-secret-2026-dev
+      - FRONTEND_URL=http://localhost:3002
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json
+      - ./backend/.env:/app/.env
+      - ./backend/scripts:/app/scripts
+    command: sh -c "npm install && npm run dev"
+    restart: unless-stopped
+    networks:
+      - opc-network
+
+  # 前端 Next.js 服务
+  frontend:
+    build: ./frontend
+    container_name: opc-frontend
+    ports:
+      - "3002:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3003/api
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/package.json:/app/package.json
+      - ./frontend/public:/app/public
+      - ./frontend/tsconfig.json:/app/tsconfig.json
+      - ./frontend/tailwind.config.js:/app/tailwind.config.js
+      - ./frontend/postcss.config.js:/app/postcss.config.js
+      - ./frontend/next.config.js:/app/next.config.js
+      - ./frontend/next-env.d.ts:/app/next-env.d.ts
+      - ./frontend/.env.local:/app/.env.local:ro
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - opc-network
+
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: opc-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=opc
+      - POSTGRES_PASSWORD=opc_dev_2026
+      - POSTGRES_DB=opc_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backend/src/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    networks:
+      - opc-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: opc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - opc-network
+
+  # NewAPI - Token 用量中心
+  newapi:
+    image: calciumion/new-api:latest
+    container_name: opc-newapi
+    ports:
+      - "3004:3000"
+    volumes:
+      - newapi_data:/data
+      - ./newapi/config:/config
+    environment:
+      - TZ=Asia/Shanghai
+      - SQLITE_PATH=/data/one-api.db
+      - SESSION_SECRET=opc-platform-2026
+      - SYNC_FREQUENCY=60
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - opc-network
+
+volumes:
+  postgres-data:
+  redis-data:
+  newapi_data:
+
+networks:
+  opc-network:
+    driver: bridge

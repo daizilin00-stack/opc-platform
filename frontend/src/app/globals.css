@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 15, 23, 42;  /* slate-900 */
+  --background-rgb: 248, 250, 252; /* slate-50 */
+  --brand-blue: 37, 99, 235;  /* brand-600 */
+  --brand-green: 34, 197, 94; /* accent-500 */
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+@layer components {
+  /* 中新数据港品牌按钮 */
+  .btn-primary {
+    @apply bg-brand-600 text-white px-4 py-2.5 rounded-lg hover:bg-brand-700 
+           transition-all duration-200 shadow-sm hover:shadow 
+           font-medium;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-brand-700 border border-brand-200 px-4 py-2.5 rounded-lg 
+           hover:bg-brand-50 transition-all duration-200
+           font-medium;
+  }
+  
+  /* 品牌卡片 */
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-slate-200/60 p-6 
+           hover:shadow-md transition-shadow duration-200;
+  }
+  
+  /* 品牌特色：渐变边框高亮 */
+  .card-highlight {
+    @apply bg-white rounded-xl shadow-sm border-l-4 border-brand-500 p-6;
+  }
+  
+  /* 数据像素点装饰（品牌元素） */
+  .pixel-dots {
+    background-image: radial-gradient(circle, #22c55e 1px, transparent 1px);
+    background-size: 8px 8px;
+  }
+}

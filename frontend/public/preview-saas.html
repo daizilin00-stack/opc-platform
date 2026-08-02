@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSDP AgentWork | AI数字员工SaaS平台</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand-blue: #2563eb;
+      --brand-blue-dark: #1d4ed8;
+      --brand-blue-light: #eff6ff;
+      --accent-green: #22c55e;
+      --accent-green-light: #f0fdf4;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-400: #94a3b8;
+      --slate-600: #475569;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--slate-800);
+      background: var(--slate-50);
+      line-height: 1.6;
+    }
+    a { text-decoration: none; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    
+    /* Header */
+    .header {
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--slate-200);
+      position: sticky;
+      top: 0; z-index: 50;
+    }
+    .header-inner {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand img { height: 36px; width: auto; display: block; }
+    .brand-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--slate-900);
+    }
+    .brand-sep { color: var(--slate-300); }
+    .brand-sub { color: var(--brand-blue); font-weight: 600; font-size: 16px; }
+    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-link { color: var(--slate-600); font-size: 14px; font-weight: 500; transition: color 0.2s; }
+    .nav-link:hover { color: var(--brand-blue); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: 500;
+      cursor: pointer; border: none; transition: all 0.2s;
+    }
+    .btn-primary { background: var(--brand-blue); color: white; }
+    .btn-primary:hover { background: var(--brand-blue-dark); }
+    .btn-lg { padding: 12px 32px; font-size: 16px; }
+    
+    /* Hero */
+    .hero {
+      background: white;
+      position: relative;
+      overflow: hidden;
+      padding: 80px 0;
+    }
+    .hero-bg-dots {
+      position: absolute; top: 0; right: 0; width: 500px; height: 500px;
+      opacity: 0.04;
+      background-image: radial-gradient(circle, var(--accent-green) 2px, transparent 2px);
+      background-size: 24px 24px;
+    }
+    .hero-inner {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px;
+      align-items: center; position: relative;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--brand-blue-light); color: var(--brand-blue-dark);
+      padding: 6px 16px; border-radius: 999px; font-size: 13px; font-weight: 500;
+      margin-bottom: 24px;
+    }
+    .badge-dot { width: 6px; height: 6px; background: var(--accent-green); border-radius: 50%; }
+    .hero h1 { font-size: 48px; font-weight: 800; color: var(--slate-900); line-height: 1.15; margin-bottom: 24px; }
+    .hero h1 span { color: var(--brand-blue); }
+    .hero p { font-size: 17px; color: var(--slate-600); line-height: 1.7; margin-bottom: 32px; }
+    .hero-actions { display: flex; gap: 16px; margin-bottom: 28px; }
+    .hero-tags { display: flex; gap: 20px; font-size: 13px; color: var(--slate-400); }
+    .hero-tags span { display: flex; align-items: center; gap: 6px; }
+    .tag-dot { width: 5px; height: 5px; background: var(--accent-green); border-radius: 50%; }
+    
+    /* Agent Panel */
+    .agent-panel {
+      background: linear-gradient(135deg, var(--brand-blue-light), var(--accent-green-light));
+      border-radius: 20px; padding: 32px; border: 1px solid var(--slate-100);
+    }
+    .agent-list { display: flex; flex-direction: column; gap: 12px; }
+    .agent-item {
+      background: white; border-radius: 12px; padding: 16px 20px;
+      display: flex; align-items: center; gap: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .agent-avatar {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 15px; flex-shrink: 0;
+    }
+    .agent-avatar.blue { background: var(--brand-blue); }
+    .agent-avatar.green { background: var(--accent-green); }
+    .agent-avatar.gray { background: var(--slate-400); }
+    .agent-info { flex: 1; }
+    .agent-name { font-weight: 600; color: var(--slate-900); font-size: 14px; }
+    .agent-role { font-size: 12px; color: var(--slate-400); margin-top: 2px; }
+    .agent-status {
+      font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 500;
+    }
+    .status-online { background: var(--brand-blue-light); color: var(--brand-blue-dark); }
+    .status-work { background: var(--accent-green-light); color: var(--accent-green); }
+    .status-idle { background: var(--slate-100); color: var(--slate-600); }
+    
+    /* SaaS Concept */
+    .saas-note {
+      background: var(--accent-green-light);
+      border-left: 3px solid var(--accent-green);
+      padding: 16px 20px;
+      border-radius: 0 12px 12px 0;
+      margin-top: 20px;
+    }
+    .saas-note p { font-size: 13px; color: var(--slate-600); margin: 0; line-height: 1.6; }
+    .saas-note strong { color: var(--accent-green); }
+    
+    /* Sections */
+    .section { padding: 80px 0; }
+    .section-header { text-align: center; margin-bottom: 48px; }
+    .section-header h2 { font-size: 32px; font-weight: 700; color: var(--slate-900); margin-bottom: 8px; }
+    .section-header p { color: var(--slate-600); font-size: 16px; }
+    
+    /* Core Services */
+    .services-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .service-card {
+      background: white; border-radius: 16px; padding: 32px;
+      border: 1px solid var(--slate-100); transition: all 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .service-card:hover { box-shadow: 0 10px 40px rgba(0,0,0,0.06); transform: translateY(-2px); }
+    .service-card.highlight { border-left: 4px solid var(--brand-blue); }
+    .service-card.highlight::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 3px; background: linear-gradient(90deg, var(--brand-blue), var(--accent-green));
+    }
+    .service-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .service-icon { font-size: 36px; line-height: 1; }
+    .service-tag { font-size: 11px; padding: 4px 12px; border-radius: 999px; font-weight: 500; }
+    .tag-blue { background: var(--brand-blue-light); color: var(--brand-blue-dark); }
+    .tag-green { background: var(--accent-green-light); color: var(--accent-green); }
+    .service-card h3 { font-size: 20px; font-weight: 700; color: var(--slate-900); margin-bottom: 6px; }
+    .service-subtitle { font-size: 14px; color: var(--brand-blue); font-weight: 600; margin-bottom: 12px; }
+    .service-desc { font-size: 14px; color: var(--slate-600); line-height: 1.6; }
+    
+    /* Pricing */
+    .pricing-section { background: white; padding: 80px 0; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .pricing-card {
+      background: white; border-radius: 16px; padding: 32px;
+      border: 1px solid var(--slate-100); transition: all 0.2s;
+      position: relative;
+    }
+    .pricing-card:hover { box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
+    .pricing-card.popular { border: 2px solid var(--brand-blue); }
+    .popular-badge {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: var(--brand-blue); color: white; padding: 4px 16px;
+      border-radius: 999px; font-size: 12px; font-weight: 600;
+    }
+    .pricing-card h3 { font-size: 20px; font-weight: 700; color: var(--slate-900); margin-bottom: 8px; }
+    .pricing-card .price { font-size: 36px; font-weight: 800; color: var(--slate-900); margin-bottom: 4px; }
+    .pricing-card .price span { font-size: 14px; font-weight: 500; color: var(--slate-400); }
+    .pricing-card .period { font-size: 14px; color: var(--slate-400); margin-bottom: 24px; }
+    .pricing-features { list-style: none; margin-bottom: 24px; }
+    .pricing-features li {
+      font-size: 14px; color: var(--slate-600); padding: 8px 0;
+      border-bottom: 1px solid var(--slate-50);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pricing-features li::before {
+      content: '✓'; color: var(--accent-green); font-weight: 700;
+    }
+    
+    /* Stats */
+    .stats-banner {
+      background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark));
+      color: white; padding: 64px 0;
+    }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; text-align: center; }
+    .stat-number { font-size: 40px; font-weight: 800; margin-bottom: 4px; }
+    .stat-label { font-size: 13px; opacity: 0.85; }
+    
+    /* Footer */
+    .footer { background: var(--slate-900); color: var(--slate-400); padding: 48px 0 24px; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; margin-bottom: 32px; }
+    .footer-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .footer-brand img { height: 28px; width: auto; }
+    .footer-brand-name { color: white; font-weight: 700; font-size: 16px; }
+    .footer-brand-sep { color: var(--slate-600); }
+    .footer-brand-sub { color: var(--brand-blue); font-weight: 600; font-size: 16px; }
+    .footer p { font-size: 13px; line-height: 1.6; }
+    .footer h4 { color: white; font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+    .footer-links { display: flex; flex-direction: column; gap: 10px; }
+    .footer-links a { color: var(--slate-400); font-size: 13px; transition: color 0.2s; }
+    .footer-links a:hover { color: white; }
+    .footer-bottom { border-top: 1px solid var(--slate-800); padding-top: 24px; text-align: center; font-size: 12px; }
+    
+    @media (max-width: 900px) {
+      .hero-inner { grid-template-columns: 1fr; }
+      .services-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .footer-grid { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 36px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="container">
+    <div class="header-inner">
+      <div class="brand">
+        <img src="logo-csdp.png" alt="CSDP">
+        <div>
+          <span class="brand-text">CSDP</span>
+          <span class="brand-sep"> | </span>
+          <span class="brand-sub">AgentWork</span>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="#" class="nav-link">登录</a>
+        <a href="#" class="btn btn-primary">立即入驻</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-bg-dots"></div>
+  <div class="container">
+    <div class="hero-inner">
+      <div>
+        <div class="badge">
+          <span class="badge-dot"></span>
+          中新数据港 · AI SaaS服务平台
+        </div>
+        <h1>雇佣你的<br><span>AI 数字团队</span></h1>
+        <p>注册重庆公司，接入 CSDP AgentWork AI 数字员工平台。<br>
+        无需海外账号、无需 VPN、无需关心底层技术，<br>
+        即开即用，让 AI 帮您生产内容、服务全球客户。</p>
+        <div class="hero-actions">
+          <a href="#" class="btn btn-primary btn-lg">免费注册公司</a>
+          <a href="#" class="btn btn-secondary btn-lg">了解 AI 员工</a>
+        </div>
+        <div class="hero-tags">
+          <span><span class="tag-dot"></span>即开即用</span>
+          <span><span class="tag-dot"></span>企业级 SaaS</span>
+          <span><span class="tag-dot"></span>跨境业务赋能</span>
+        </div>
+        
+        <div class="saas-note">
+          <p><strong>SaaS模式：</strong>平台统一采购和调度全球顶尖 AI 模型能力，封装为即开即用的数字员工服务。您购买的是"AI工作能力"，平台负责背后的技术调度、跨境传输和模型优化。</p>
+        </div>
+      </div>
+      <div class="agent-panel">
+        <div class="agent-list">
+          <div class="agent-item">
+            <div class="agent-avatar blue">CEO</div>
+            <div class="agent-info">
+              <div class="agent-name">CEO</div>
+              <div class="agent-role">团坐009 · 全局调度</div>
+            </div>
+            <span class="agent-status status-online">在线</span>
+          </div>
+          <div class="agent-item">
+            <div class="agent-avatar green">销</div>
+            <div class="agent-info">
+              <div class="agent-name">销售总监</div>
+              <div class="agent-role">客户开发 · 方案推销</div>
+            </div>
+            <span class="agent-status status-work">工作中</span>
+          </div>
+          <div class="agent-item">
+            <div class="agent-avatar green">客</div>
+            <div class="agent-info">
+              <div class="agent-name">客服主管</div>
+              <div class="agent-role">7×24 多语言应答</div>
+            </div>
+            <span class="agent-status status-work">7×24</span>
+          </div>
+          <div class="agent-item">
+            <div class="agent-avatar gray">技</div>
+            <div class="agent-info">
+              <div class="agent-name">技术方案官</div>
+              <div class="agent-role">方案设计 · 文档生成</div>
+            </div>
+            <span class="agent-status status-idle">待命</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Core Services -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>平台核心服务</h2>
+      <p>基于中新数据港基础设施，为企业提供即开即用的 AI SaaS 服务</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card highlight">
+        <div class="service-header">
+          <div class="service-icon">🕴️</div>
+          <span class="service-tag tag-blue">SaaS应用</span>
+        </div>
+        <h3>AI 数字员工</h3>
+        <div class="service-subtitle">销售 · 客服 · 技术 · 合规 · 助理</div>
+        <div class="service-desc">
+          雇佣 AI 数字员工完成日常业务工作。平台自动调度最优 AI 模型，
+          您只需关注业务目标，无需关心底层技术细节。
+          按月订阅，按需雇佣，随时增减。
+        </div>
+      </div>
+      <div class="service-card highlight">
+        <div class="service-header">
+          <div class="service-icon">🚀</div>
+          <span class="service-tag tag-green">部署平台</span>
+        </div>
+        <h3>OpenClaw 部署平台</h3>
+        <div class="service-subtitle">10 分钟上线自定义 AI Agent</div>
+        <div class="service-desc">
+          在平台云环境中快速部署您自己的 AI Agent 应用。
+          平台提供计算资源、模型接口和运行环境，您专注业务逻辑。
+        </div>
+      </div>
+      <div class="service-card">
+        <div class="service-header">
+          <div class="service-icon">💎</div>
+          <span class="service-tag tag-blue">资源计费</span>
+        </div>
+        <h3>Token 用量中心</h3>
+        <div class="service-subtitle">用多少算多少，透明计费</div>
+        <div class="service-desc">
+          AI 数字员工工作消耗的 Token 实时计费。平台集中采购全球模型能力，
+          以透明价格提供给企业用户。充值即用，余额不足自动提醒。
+        </div>
+      </div>
+      <div class="service-card">
+        <div class="service-header">
+          <div class="service-icon">🌐</div>
+          <span class="service-tag tag-green">基础设施</span>
+        </div>
+        <h3>跨境数据能力</h3>
+        <div class="service-subtitle">平台级跨境传输与海外资源调度</div>
+        <div class="service-desc">
+          平台依托中新数据港跨境基础设施，为企业用户提供合规的海外 AI 能力调用。
+          用户无需自建海外通道，通过平台即可使用全球顶尖 AI 模型。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section class="pricing-section">
+  <div class="container">
+    <div class="section-header">
+      <h2>开园入驻套餐</h2>
+      <p>注册重庆公司，选择适合您的 AI 数字员工方案</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <h3>体验版</h3>
+        <div class="price">¥99<span>/月</span></div>
+        <div class="period">适合个人创业者初次体验</div>
+        <ul class="pricing-features">
+          <li>1 个 AI 数字员工（行政助理）</li>
+          <li>10万 Token/月 基础额度</li>
+          <li>国内模型能力</li>
+          <li>基础客服支持</li>
+        </ul>
+        <a href="#" class="btn btn-secondary" style="width:100%">免费体验</a>
+      </div>
+      <div class="pricing-card popular">
+        <div class="popular-badge">开园推荐</div>
+        <h3>创业版</h3>
+        <div class="price">¥1,500<span>/首月</span></div>
+        <div class="period">之后 ¥2,500/月 · 年付享8折</div>
+        <ul class="pricing-features">
+          <li>3 个 AI 数字员工（自选角色）</li>
+          <li>50万 Token/月 基础额度</li>
+          <li>国内+海外模型智能调度</li>
+          <li>跨境数据能力（平台级）</li>
+          <li>优先客服支持</li>
+        </ul>
+        <a href="#" class="btn btn-primary" style="width:100%">立即入驻</a>
+      </div>
+      <div class="pricing-card">
+        <h3>出海版</h3>
+        <div class="price">¥5,800<span>/月</span></div>
+        <div class="period">适合有海外业务的企业</div>
+        <ul class="pricing-features">
+          <li>6 个 AI 数字员工（全角色）</li>
+          <li>200万 Token/月 基础额度</li>
+          <li>国内+海外模型智能调度</li>
+          <li>跨境数据能力（平台级）</li>
+          <li>专属客户成功经理</li>
+        </ul>
+        <a href="#" class="btn btn-secondary" style="width:100%">预约咨询</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<section class="stats-banner">
+  <div class="container">
+    <div class="stats-grid">
+      <div>
+        <div class="stat-number">100+</div>
+        <div class="stat-label">开园首批入驻</div>
+      </div>
+      <div>
+        <div class="stat-number">6</div>
+        <div class="stat-label">AI 数字员工</div>
+      </div>
+      <div>
+        <div class="stat-number">1</div>
+        <div class="stat-label">站式 SaaS 平台</div>
+      </div>
+      <div>
+        <div class="stat-number">10min</div>
+        <div class="stat-label">Agent 部署上线</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand">
+          <img src="logo-csdp.png" alt="CSDP">
+          <span class="footer-brand-name">CSDP</span>
+          <span class="footer-brand-sep"> | </span>
+          <span class="footer-brand-sub">AgentWork</span>
+        </div>
+        <p>中新数据港旗下 AI 数字员工 SaaS 平台。依托中新数据港跨境基础设施，为企业提供即开即用的 AI 生产能力，助力跨境业务拓展。</p>
+      </div>
+      <div>
+        <h4>联系方式</h4>
+        <p>重庆市渝中区长江滨江路 2 号<br>T4N 塔楼第 23 层<br>csdp-cq@139.com</p>
+      </div>
+      <div>
+        <h4>快速链接</h4>
+        <div class="footer-links">
+          <a href="#">入驻申请</a>
+          <a href="#">服务介绍</a>
+          <a href="#">帮助中心</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 中新数据港（重庆）科技有限公司 · CSDP AgentWork · 董事长：Celine · CEO：团坐009</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
