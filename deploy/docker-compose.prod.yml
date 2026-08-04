@@ -13,8 +13,8 @@ services:
       - "127.0.0.1:3002:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://${DOMAIN:-csdp-agentwork.com}/api
-      - NEXT_PUBLIC_NEWAPI_URL=https://${DOMAIN:-csdp-agentwork.com}/v1
+      - NEXT_PUBLIC_API_URL=${PROTOCOL:-https}://${DOMAIN:-csdp-agentwork.com}/api
+      - NEXT_PUBLIC_NEWAPI_URL=${PROTOCOL:-https}://${DOMAIN:-csdp-agentwork.com}/v1
     networks:
       - opc-network
     depends_on:
@@ -35,7 +35,7 @@ services:
       - REDIS_URL=${REDIS_URL}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=7d
-      - FRONTEND_URL=https://${DOMAIN:-csdp-agentwork.com}
+      - FRONTEND_URL=${PROTOCOL:-https}://${DOMAIN:-csdp-agentwork.com}
       - LINGAPI_BASE_URL=${LINGAPI_BASE_URL}
       - LINGAPI_API_KEY=${LINGAPI_API_KEY}
       - NEWAPI_BASE_URL=http://newapi:3000/v1
