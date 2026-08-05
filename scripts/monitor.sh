@@ -9,7 +9,8 @@ PROJECT_DIR="${SCRIPT_DIR}/.."
 LOG_DIR="${PROJECT_DIR}/logs/monitor"
 ENV_FILE="${PROJECT_DIR}/infra/.env.feishu"
 
-# 加载飞书配置
+# 生产环境
+PROD_IP="121.196.238.35"
 if [ -f "$ENV_FILE" ]; then
     source "$ENV_FILE"
 fi
@@ -101,32 +102,64 @@ check_containers() {
     return $failed
 }
 
-# 检查 HTTP 服务
+# 检查 HTTP 服务（本地 + 生产）
 check_http_services() {
     local failed=0
-    
-    # 前端
+
+    # 本地前端
     local frontend_code
     frontend_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3002/" 2>/dev/null || echo "000")
     if [ "$frontend_code" != "200" ]; then
-        log "✗ 前端异常: HTTP $frontend_code"
-        send_alert "error" "前端服务异常" "首页返回 HTTP $frontend_code，期望 200。"
+        log "✗ 本地前端异常: HTTP $frontend_code"
+        send_alert "error" "本地前端服务异常" "首页返回 HTTP $frontend_code，期望 200。"
         failed=$((failed + 1))
     else
-        log "✓ 前端正常: HTTP 200"
+        log "✓ 本地前端正常: HTTP 200"
     fi
-    
-    # 后端
+
+    # 本地后端
     local backend_code
     backend_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3003/api/health" 2>/dev/null || echo "000")
     if [ "$backend_code" != "200" ]; then
-        log "✗ 后端异常: HTTP $backend_code"
-        send_alert "error" "后端服务异常" "健康检查返回 HTTP $backend_code，期望 200。"
+        log "✗ 本地后端异常: HTTP $backend_code"
+        send_alert "error" "本地后端服务异常" "健康检查返回 HTTP $backend_code，期望 200。"
         failed=$((failed + 1))
     else
-        log "✓ 后端正常: HTTP 200"
+        log "✓ 本地后端正常: HTTP 200"
     fi
-    
+
+    # NewAPI
+    local newapi_code
+    newapi_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3004/api/status" 2>/dev/null || echo "000")
+    if [ "$newapi_code" != "200" ]; then
+        log "✗ 本地 NewAPI 异常: HTTP $newapi_code"
+        send_alert "error" "本地 NewAPI 服务异常" "/api/status 返回 HTTP $newapi_code，期望 200。"
+        failed=$((failed + 1))
+    else
+        log "✓ 本地 NewAPI 正常: HTTP 200"
+    fi
+
+    # 生产环境
+    local prod_home
+    prod_home=$(curl -s -o /dev/null -w "%{http_code}" "http://${PROD_IP}/" 2>/dev/null || echo "000")
+    if [ "$prod_home" != "200" ]; then
+        log "✗ 生产首页异常: HTTP $prod_home"
+        send_alert "error" "生产环境首页异常" "http://${PROD_IP}/ 返回 HTTP $prod_home，期望 200。"
+        failed=$((failed + 1))
+    else
+        log "✓ 生产首页正常: HTTP 200"
+    fi
+
+    local prod_health
+    prod_health=$(curl -s -o /dev/null -w "%{http_code}" "http://${PROD_IP}/api/health" 2>/dev/null || echo "000")
+    if [ "$prod_health" != "200" ]; then
+        log "✗ 生产健康检查异常: HTTP $prod_health"
+        send_alert "error" "生产环境健康检查异常" "http://${PROD_IP}/api/health 返回 HTTP $prod_health，期望 200。"
+        failed=$((failed + 1))
+    else
+        log "✓ 生产健康检查正常: HTTP 200"
+    fi
+
     return $failed
 }
 
