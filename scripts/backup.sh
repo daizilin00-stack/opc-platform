@@ -52,7 +52,54 @@ send_alert() {
 }
 
 # 远程上传接口（预留实现）
-# 接入方式：配置 AWS CLI / ossutil / rclone 后在此实现
+# 接入方式：配置 ossutil / aws cli / rclone 后启用
+# 本地脚本使用 ossutil 下载到临时目录，避免全局安装
+
+OSSUTIL_DIR="${PROJECT_DIR}/.ossutil"
+OSSUTIL_BIN="${OSSUTIL_DIR}/ossutil"
+
+ensure_ossutil() {
+    if [ -x "$OSSUTIL_BIN" ]; then
+        return 0
+    fi
+
+    log "ossutil 未安装，尝试下载到 ${OSSUTIL_DIR}..."
+    mkdir -p "$OSSUTIL_DIR"
+
+    local os=$(uname -s | tr '[:upper:]' '[:lower:]')
+    local arch=$(uname -m)
+    local download_url=""
+
+    case "$os" in
+        linux)
+            case "$arch" in
+                x86_64) download_url="https://gosspublic.alicdn.com/ossutil/1.7.19/ossutil64" ;;
+                aarch64|arm64) download_url="https://gosspublic.alicdn.com/ossutil/1.7.19/ossutilarm64" ;;
+                *) log "不支持的架构: $arch"; return 1 ;;
+            esac
+            ;;
+        darwin)
+            case "$arch" in
+                x86_64) download_url="https://gosspublic.alicdn.com/ossutil/1.7.19/ossutilmac64" ;;
+                arm64) download_url="https://gosspublic.alicdn.com/ossutil/1.7.19/ossutilmacarm64" ;;
+                *) log "不支持的架构: $arch"; return 1 ;;
+            esac
+            ;;
+        *)
+            log "不支持的操作系统: $os"
+            return 1
+            ;;
+    esac
+
+    if ! curl -fsSL "$download_url" -o "$OSSUTIL_BIN"; then
+        log "ossutil 下载失败: $download_url"
+        return 1
+    fi
+
+    chmod +x "$OSSUTIL_BIN"
+    log "ossutil 下载完成: $OSSUTIL_BIN"
+}
+
 upload_to_remote() {
     local file="$1"
     local type="$2"  # postgres | newapi
@@ -63,18 +110,47 @@ upload_to_remote() {
     fi
 
     local remote_path=""
+    local filename
+    filename=$(basename "$file")
+
     case "$REMOTE_PROVIDER" in
         oss)
-            # 示例：ossutil cp "$file" "oss://${OSS_BUCKET}/${OSS_PREFIX}/$(basename "$file")"
-            remote_path="oss://${OSS_BUCKET}/${OSS_PREFIX}/${type}/$(basename "$file")"
+            remote_path="oss://${OSS_BUCKET}/${OSS_PREFIX}/${type}/${filename}"
+
+            if ! ensure_ossutil; then
+                send_alert "error" "OSS 上传失败" "ossutil 下载失败，无法上传 ${filename}"
+                return 1
+            fi
+
+            log "上传至 OSS: $remote_path"
+            if ! "$OSSUTIL_BIN" cp "$file" "$remote_path" \
+                --endpoint "${OSS_ENDPOINT}" \
+                --access-key-id "${OSS_ACCESS_KEY_ID}" \
+                --access-key-secret "${OSS_ACCESS_KEY_SECRET}" \
+                --retry-count 3 2>>"$LOG_FILE"; then
+                send_alert "error" "OSS 上传失败" "文件: ${filename}\n目标: $remote_path"
+                return 1
+            fi
+
+            log "✓ OSS 上传成功: $remote_path"
             ;;
         s3)
-            # 示例：aws s3 cp "$file" "s3://${S3_BUCKET}/${S3_PREFIX}/$(basename "$file")"
-            remote_path="s3://${S3_BUCKET}/${S3_PREFIX}/${type}/$(basename "$file")"
+            remote_path="s3://${S3_BUCKET}/${S3_PREFIX}/${type}/${filename}"
+            log "上传至 S3: $remote_path"
+            if ! aws s3 cp "$file" "$remote_path" 2>>"$LOG_FILE"; then
+                send_alert "error" "S3 上传失败" "文件: ${filename}\n目标: $remote_path"
+                return 1
+            fi
+            log "✓ S3 上传成功: $remote_path"
             ;;
         rclone)
-            # 示例：rclone copy "$file" "${RCLONE_REMOTE}:${RCLONE_PREFIX}/${type}/"
-            remote_path="${RCLONE_REMOTE}:${RCLONE_PREFIX}/${type}/$(basename "$file")"
+            remote_path="${RCLONE_REMOTE}:${RCLONE_PREFIX}/${type}/${filename}"
+            log "上传至 rclone: $remote_path"
+            if ! rclone copy "$file" "${RCLONE_REMOTE}:${RCLONE_PREFIX}/${type}/" 2>>"$LOG_FILE"; then
+                send_alert "error" "rclone 上传失败" "文件: ${filename}\n目标: $remote_path"
+                return 1
+            fi
+            log "✓ rclone 上传成功: $remote_path"
             ;;
         *)
             log "不支持的远程上传提供商: ${REMOTE_PROVIDER}"
@@ -82,13 +158,6 @@ upload_to_remote() {
             ;;
     esac
 
-    log "上传至远程: $remote_path"
-    # TODO: 接入具体命令后取消下面注释
-    # if ! <upload_command_here>; then
-    #     send_alert "error" "备份远程上传失败" "文件: $file\n目标: $remote_path"
-    #     return 1
-    # fi
-    log "远程上传接口已预留，未执行真实上传。配置 REMOTE_UPLOAD_ENABLED=true 并实现对应命令后启用。"
     return 0
 }
 
