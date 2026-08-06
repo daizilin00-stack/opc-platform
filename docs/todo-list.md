@@ -14,7 +14,7 @@
 | 2 | **微信支付商户号申请** | ⏳ 待 ICP 备案号 | Celine/代梓淋 | 备案号下发后立即提交微信支付商户申请 | 微信支付要求网站已 ICP 备案 |
 | 3 | **支付宝商户号申请** | ⏳ 待 ICP 备案号 | Celine/代梓淋 | 备案号下发后立即提交支付宝商户申请 | 支付宝要求网站已 ICP 备案 |
 | 4 | **生产服务器 SSL 证书配置** | ⏳ 待 ICP 备案/域名解析 | 团坐009 | 备案通过后：域名解析回 ECS → 申请/上传 SSL 证书 → Nginx 443 配置 → 切换 `PROTOCOL=https` + `DOMAIN=csdp-agentwork.com` | 当前只能用 HTTP + IP 访问 |
-| 5 | **生产数据库与 NewAPI 备份策略** | ❌ 未开始 | 团坐009 | 配置每日自动备份：PostgreSQL `pg_dump` + NewAPI SQLite `/data/one-api.db` → 上传到 OSS/S3 或异地服务器 | 数据丢失风险 |
+| 5 | **生产数据库与 NewAPI 备份策略** | 🟡 脚本已编写，待配置 crontab + 远程上传 | 团坐009/Celine | 1) 配置 `infra/.env.backup`（密码、保留天数）；2) 本地测试 `scripts/backup.sh`；3) crontab 每日执行；4) 配置 OSS/S3 远程上传 | 无 |
 | 6 | **生产服务器 SSH 安全加固** | ❌ 未开始 | 团坐009 | 1) 禁用 root 密码登录，改用 SSH key；2) 修改默认 22 端口或配置 fail2ban；3) 限制登录 IP（如有固定办公 IP） | 当前使用 root 密码登录，风险较高 |
 
 ---
