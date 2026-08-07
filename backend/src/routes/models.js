@@ -85,8 +85,17 @@ router.post('/chat', authenticate, requireCompanyAuth, async (req, res) => {
   }
 
   try {
-    // 1. 检查钱包余额（预留余额检查逻辑，先放行）
-    // TODO: 接入钱包余额检查，余额不足时返回 402
+    // 1. 估算并检查钱包余额
+    const estimatedCost = estimateMaxCost(model, messages, maxTokens);
+    const balanceCheck = await ensureSufficientBalance(userId, estimatedCost);
+    if (!balanceCheck.sufficient) {
+      return res.status(402).json({
+        error: '余额不足',
+        message: `钱包余额不足，请先充值。当前余额: ¥${balanceCheck.balance}，预计需要: ¥${estimatedCost}`,
+        currentBalance: balanceCheck.balance,
+        estimatedCost,
+      });
+    }
 
     // 2. 调用模型
     const result = await chatCompletion({
@@ -96,7 +105,7 @@ router.post('/chat', authenticate, requireCompanyAuth, async (req, res) => {
       maxTokens,
     });
 
-    // 3. 计算费用并记录用量
+    // 3. 计算费用、扣款并记录用量
     const cost = await recordTokenUsage(userId, model, result.usage, result.provider);
 
     res.json({
@@ -132,6 +141,24 @@ router.post('/chat/stream', authenticate, requireCompanyAuth, async (req, res) =
     return res.status(400).json({ error: '缺少必要参数: model, messages' });
   }
 
+  // 1. 估算并检查钱包余额（在设置 SSE 头之前返回 JSON 错误）
+  const estimatedCost = estimateMaxCost(model, messages, maxTokens);
+  let balanceCheck;
+  try {
+    balanceCheck = await ensureSufficientBalance(userId, estimatedCost);
+  } catch (err) {
+    logger.error(`[流式模型聊天] 余额检查失败 用户 ${userId}:`, err.message);
+    return res.status(500).json({ error: '余额检查失败', message: err.message });
+  }
+  if (!balanceCheck.sufficient) {
+    return res.status(402).json({
+      error: '余额不足',
+      message: `钱包余额不足，请先充值。当前余额: ¥${balanceCheck.balance}，预计需要: ¥${estimatedCost}`,
+      currentBalance: balanceCheck.balance,
+      estimatedCost,
+    });
+  }
+
   // 设置 SSE 响应头
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -165,7 +192,7 @@ router.post('/chat/stream', authenticate, requireCompanyAuth, async (req, res) =
       })}\n\n`);
     }
 
-    // 记录用量
+    // 计算费用、扣款并记录用量
     const cost = await recordTokenUsage(userId, model, usage, getProviderFromModel(model));
 
     // 发送结束标记
@@ -228,20 +255,59 @@ function getProviderFromModel(modelId) {
 }
 
 /**
- * 记录 Token 用量到数据库
- * @returns {Object} { costCny, model }
+ * 估算一次模型调用的最大可能费用（用于调用前余额检查）
+ */
+function estimateMaxCost(model, messages, maxTokens = 2048) {
+  try {
+    // 按 model ID 定价；如果是按次计费模型，直接取 perCall 价格
+    const pricing = calculateTokenCost(model, 0, 0);
+    if (pricing.perCallCost) {
+      return pricing.totalCost;
+    }
+    // 按量模型：prompt 按消息估算，output 按 maxTokens 估算上限
+    const promptText = messages.map(m => m.content).join('\n');
+    const estimatedPrompt = estimateTokens(promptText);
+    return calculateTokenCost(model, estimatedPrompt, maxTokens).totalCost;
+  } catch (err) {
+    // 如果找不到定价，按一个安全上限估算，避免余额检查误判
+    return 0.1;
+  }
+}
+
+/**
+ * 检查用户钱包余额是否足够
+ * @returns {Object} { sufficient: boolean, balance: number }
+ */
+async function ensureSufficientBalance(userId, amount) {
+  const result = await pool.query(
+    'SELECT balance FROM wallets WHERE user_id = $1',
+    [userId]
+  );
+  const balance = result.rows.length > 0 ? parseFloat(result.rows[0].balance) : 0;
+  return {
+    sufficient: balance >= amount,
+    balance: Math.round(balance * 100) / 100,
+  };
+}
+
+/**
+ * 记录 Token 用量到数据库，并实际扣减用户钱包余额
+ * @returns {Object} { costCny, balanceAfter, model }
  */
 async function recordTokenUsage(userId, model, usage, provider) {
-  if (!usage) return { costCny: 0, model };
+  if (!usage) return { costCny: 0, balanceAfter: 0, model };
 
+  const client = await pool.connect();
   try {
-    // 计算费用（优先用 provider 作为 pricing key，fallback 用 model ID）
+    await client.query('BEGIN');
+
+    // 计算费用（优先用 model ID 作为 pricing key）
     let costInfo;
     try {
-      costInfo = calculateTokenCost(provider, usage.prompt_tokens, usage.completion_tokens);
+      costInfo = calculateTokenCost(model, usage.prompt_tokens, usage.completion_tokens);
     } catch (e) {
       try {
-        costInfo = calculateTokenCost(model, usage.prompt_tokens, usage.completion_tokens);
+        costInfo = calculateTokenCost(provider, usage.prompt_tokens, usage.completion_tokens);
       } catch (e2) {
         costInfo = { totalCost: 0, markup: 0 };
       }
@@ -249,14 +315,30 @@ async function recordTokenUsage(userId, model, usage, provider) {
 
     const costCny = costInfo.totalCost;
 
-    // 写入 token_usage 表
-    await pool.query(
+    // 1. 扣减钱包余额
+    const walletResult = await client.query(
+      `UPDATE wallets
+       SET balance = balance - $1, updated_at = NOW()
+       WHERE user_id = $2
+       RETURNING balance`,
+      [costCny, userId]
+    );
+
+    if (walletResult.rows.length === 0) {
+      throw new Error(`用户 ${userId} 钱包不存在，无法扣费`);
+    }
+
+    const balanceAfter = parseFloat(walletResult.rows[0].balance);
+
+    // 2. 写入 token_usage 表
+    const tokenUsageResult = await client.query(
       `INSERT INTO token_usage
        (user_id, agent_type, model_name, prompt_tokens, completion_tokens, total_tokens, cost_cny)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id`,
       [
         userId,
-        'model_proxy',      // agent_type 标记为模型代理直接调用
+        'model_proxy',
         model,
         usage.prompt_tokens,
         usage.completion_tokens,
@@ -265,12 +347,29 @@ async function recordTokenUsage(userId, model, usage, provider) {
       ]
     );
 
-    logger.info(`[用量记录] 用户 ${userId} | ${model} | ${usage.total_tokens} tokens | ¥${costCny}`);
+    // 3. 写入钱包交易流水
+    await client.query(
+      `INSERT INTO wallet_transactions
+       (user_id, wallet_id, transaction_type, direction, amount, currency,
+        balance_after, frozen_after, description, status)
+       SELECT w.id, w.id, 'token_usage', 'out', $1, 'CNY',
+              $2, w.frozen, $3, 'completed'
+       FROM wallets w
+       WHERE w.user_id = $4`,
+      [costCny, balanceAfter, `模型调用: ${model} (token_usage_id=${tokenUsageResult.rows[0].id})`, userId]
+    );
 
-    return { costCny, model, provider };
+    await client.query('COMMIT');
+
+    logger.info(`[用量记录] 用户 ${userId} | ${model} | ${usage.total_tokens} tokens | ¥${costCny} | 余额 ¥${balanceAfter}`);
+
+    return { costCny, balanceAfter: Math.round(balanceAfter * 100) / 100, model, provider };
   } catch (err) {
-    logger.error('[用量记录] 记录失败:', err);
-    return { costCny: 0, model, provider, error: true };
+    await client.query('ROLLBACK');
+    logger.error('[用量记录] 扣费失败:', err);
+    return { costCny: 0, balanceAfter: 0, model, provider, error: true, message: err.message };
+  } finally {
+    client.release();
   }
 }
 
