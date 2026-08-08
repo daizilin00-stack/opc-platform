@@ -63,6 +63,30 @@ ensure_ossutil() {
         return 0
     fi
 
+    # 优先使用已安装的 aliyun CLI 内置 ossutil（本地 macOS 等场景）
+    if command -v aliyun >/dev/null 2>&1 && aliyun ossutil --help >/dev/null 2>&1; then
+        mkdir -p "$OSSUTIL_DIR"
+        cat > "$OSSUTIL_BIN" <<'WRAPPER'
+#!/bin/bash
+exec aliyun ossutil "$@"
+WRAPPER
+        chmod +x "$OSSUTIL_BIN"
+        log "使用 aliyun ossutil 包装器: $OSSUTIL_BIN"
+        return 0
+    fi
+
+    # 其次使用全局 ossutil
+    if command -v ossutil >/dev/null 2>&1; then
+        mkdir -p "$OSSUTIL_DIR"
+        cat > "$OSSUTIL_BIN" <<'WRAPPER'
+#!/bin/bash
+exec ossutil "$@"
+WRAPPER
+        chmod +x "$OSSUTIL_BIN"
+        log "使用系统 ossutil 包装器: $OSSUTIL_BIN"
+        return 0
+    fi
+
     log "ossutil 未安装，尝试下载到 ${OSSUTIL_DIR}..."
     mkdir -p "$OSSUTIL_DIR"
 
@@ -126,8 +150,7 @@ upload_to_remote() {
             if ! "$OSSUTIL_BIN" cp "$file" "$remote_path" \
                 --endpoint "${OSS_ENDPOINT}" \
                 --access-key-id "${OSS_ACCESS_KEY_ID}" \
-                --access-key-secret "${OSS_ACCESS_KEY_SECRET}" \
-                --retry-count 3 2>>"$LOG_FILE"; then
+                --access-key-secret "${OSS_ACCESS_KEY_SECRET}" 2>>"$LOG_FILE"; then
                 send_alert "error" "OSS 上传失败" "文件: ${filename}\n目标: $remote_path"
                 return 1
             fi
@@ -187,8 +210,7 @@ backup_postgres() {
     size=$(du -h "$filepath" | awk '{print $1}')
     log "✓ PostgreSQL 备份完成: $filepath ($size)"
 
-    upload_to_remote "$filepath" "postgres"
-    return 0
+    upload_to_remote "$filepath" "postgres" || return 1
 }
 
 # 备份 NewAPI SQLite
@@ -217,8 +239,7 @@ backup_newapi() {
     size=$(du -h "$filepath" | awk '{print $1}')
     log "✓ NewAPI 备份完成: $filepath ($size)"
 
-    upload_to_remote "$filepath" "newapi"
-    return 0
+    upload_to_remote "$filepath" "newapi" || return 1
 }
 
 # 清理旧备份
