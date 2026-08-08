@@ -1,0 +1,5 @@
+# Sensitive infrastructure keys and credentials
+# Keep this directory for README/scripts only; ignore all key/password files
+*
+!.gitignore
+!README.md
