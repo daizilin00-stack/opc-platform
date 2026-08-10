@@ -15,7 +15,7 @@
 | 3 | **支付宝商户号申请** | ⏳ 备案号已下发，可立即申请 | Celine/代梓淋 | 提交支付宝商户申请：营业执照、ICP 备案号、对公账户、域名、网站截图 | 支付宝要求网站已 ICP 备案且可 HTTPS 访问 |
 | 4 | **生产服务器 SSL 证书配置** | ✅ 已完成（2026-08-10） | 团坐009 | 已通过 acme.sh + Let's Encrypt 签发证书；Nginx 443 已启用；HTTP 80 已 301 跳转 HTTPS；`https://csdp-agentwork.com/` 与 `/api/health` 均 200 | 无 |
 | 5 | **生产数据库与 NewAPI 备份策略** | 🟡 **已确定阿里云 OSS；待创建 bucket + RAM 子用户** | 团坐009/Celine | 1) 阿里云创建 OSS bucket（杭州地域，建议 `csdp-agentwork-backup`）；2) 创建 RAM 子用户并授权只写该 bucket；3) 在 `infra/.env.backup` 填入 endpoint/bucket/AK/SK；4) 在本地或 ECS 开启 `REMOTE_UPLOAD_ENABLED=true` 测试上传 | 董事长已确认使用阿里云 OSS |
-| 6 | **生产服务器 SSH 安全加固** | 🟡 密钥已绑定并测试登录成功，待禁用 root 密码 | 团坐009 | 1) ✅ 生成 Ed25519 密钥对；2) ✅ 通过阿里云 API 将公钥绑定到 ECS；3) ✅ 测试密钥登录成功；4) 禁用 root 密码登录（/etc/ssh/sshd_config 中 `PermitRootLogin no`）并 reload sshd；5) 可选：修改默认 22 端口 / fail2ban / 限制登录 IP | 当前 root 密码登录已被拒绝，可能已部分禁用，但需确认配置 |
+| 6 | **生产服务器 SSH 安全加固** | ✅ 已完成（2026-08-10） | 团坐009 | 1) ✅ 生成 Ed25519 密钥对；2) ✅ 通过阿里云 API 将公钥绑定到 ECS；3) ✅ 测试密钥登录成功；4) ✅ 确认 `PasswordAuthentication no` + `PermitRootLogin prohibit-password` 已生效，root 密码登录被拒绝；5) 可选：修改默认 22 端口 / fail2ban / 限制登录 IP | 无 |
 
 ---
 
@@ -39,13 +39,13 @@
 
 | # | 待办事项 | 当前状态 | 负责人 | 建议行动 |
 |---|----------|----------|--------|----------|
-| 16 | **NewAPI 渠道创建脚本完善** | 🟡 当前用本地 DB seed 方案绕过 | 团坐009 | 研究 rc.23 的 `/api/channel` 正确请求格式，让 `bootstrap-newapi.py` 能完全自动创建渠道和定价 |
+| 16 | **NewAPI 渠道创建脚本完善** | ✅ token 已创建并配置（2026-08-10） | 团坐009 | 已在 NewAPI 后台创建 `OPC-Production-2026-08-10` token 并填入 `.env.prod`；后端容器已重建生效；`/v1` 路径供外部客户端使用，OPC 后端模型调用仍直接走 LingAPI | 无 |
 | 17 | **DeepSeek/Kimi/通义千问直接渠道评估** | ⏸️ 过渡方案保留 | 团坐009 | 评估是否需要保留国内模型直调作为 LingAPI 的 fallback，配置对应 API key |
 | 18 | **DeepSeek 技术集成（改用 LingAPI deepseek-v4 系列）** | ✅ 火山方舟已弃用 | 团坐009 | 确认 `deepseek-v4-flash` / `deepseek-v4-pro` 在 LingAPI 渠道可用，前端模型列表已包含 |
 | 19 | **品牌隔离（NewAPI 响应头/错误重写）** | ❌ 未开始 | 团坐009 | Nginx 层重写 `X-New-Api-Version`、`X-Oneapi-Request-Id`、`new_api_error` 等，避免暴露上游品牌 |
 | 20 | **第三方聚合支付（Stripe/PayNow/拉卡拉）** | ⏸️ 二期按需 | 团坐009 | 开园后根据用户支付需求评估接入 |
 | 21 | **生产环境日志归档** | ⏸️ 未开始 | 团坐009 | 配置 backend logs、Nginx logs 定期轮转与归档 |
-| 22 | **跨域安全加固（CORS）** | 🟡 待切换 `FRONTEND_URL=https://csdp-agentwork.com` | 团坐009 | 备案后切回域名时，确认 CORS 配置严格匹配，不允许多域名泛化；需重新部署 Docker Compose 使环境变量生效 | HTTPS 已通，但生产容器可能仍在使用 IP 的 CORS 配置 |
+| 22 | **跨域安全加固（CORS）** | ✅ 已完成（2026-08-10） | 团坐009 | 已切换 `FRONTEND_URL=https://csdp-agentwork.com`；确认 CORS 配置严格匹配域名，不允许多域名泛化；生产容器已重建 | 无 |
 | 23 | **OPC 与 InkCore API 打通** | ⏸️ InkCore 未实质开发 | 团坐009 | 待 InkCore 启动后，对接商品上架、收益回流、账号验证接口 |
 | 24 | **新加坡公司银行账户开户跟进** | ⏸️ 预计 4-8 周（2026-06-29 起算） | Celine | 跟进开户进度 |
 | 25 | **CSDP-WAN 物理专线供应商选型** | ⏸️ 文档已备 | Celine | 华为/华三/锐捷供应商谈判、CPE 选型、1 周测试 |
