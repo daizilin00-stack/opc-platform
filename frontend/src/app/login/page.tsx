@@ -119,8 +119,18 @@ export default function LoginPage() {
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-6">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-slate-500">
-          © 2026 中新数据港（重庆）科技有限公司 · CSDP AgentWork
+        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-slate-500 space-y-1">
+          <p>© 2026 中新数据港（重庆）科技有限公司 · CSDP AgentWork</p>
+          <p>
+            <a
+              href="https://beian.miit.gov.cn/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-brand-600 transition-colors"
+            >
+              渝ICP备2026018045号
+            </a>
+          </p>
         </div>
       </footer>
     </main>

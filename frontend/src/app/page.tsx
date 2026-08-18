@@ -252,8 +252,18 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="border-t border-slate-800 pt-6 text-center text-sm">
+          <div className="border-t border-slate-800 pt-6 text-center text-sm space-y-2">
             <p>© 2026 中新数据港（重庆）科技有限公司 · CSDP AgentWork</p>
+            <p>
+              <a
+                href="https://beian.miit.gov.cn/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white transition-colors"
+              >
+                渝ICP备2026018045号
+              </a>
+            </p>
           </div>
         </div>
       </footer>
