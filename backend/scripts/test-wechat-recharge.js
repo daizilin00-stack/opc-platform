@@ -7,7 +7,8 @@
 
 require('/app/node_modules/dotenv').config();
 const path = require('path');
-const QRCode = require('qrcode');
+const fs = require('fs');
+const axios = require('axios');
 const paymentService = require('../src/services/paymentService');
 
 const QR_OUTPUT_PATH = path.resolve(__dirname, 'wechat-test-qr.png');
@@ -33,7 +34,9 @@ async function test() {
       console.log('✅ 微信支付下单成功，订单号:', payParams.orderNo);
       console.log('code_url:', payParams.codeUrl);
 
-      await QRCode.toFile(QR_OUTPUT_PATH, payParams.codeUrl, { width: 400, margin: 2 });
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(payParams.codeUrl)}`;
+      const response = await axios.get(qrUrl, { responseType: 'arraybuffer', timeout: 10000 });
+      fs.writeFileSync(QR_OUTPUT_PATH, response.data);
       console.log('✅ 二维码已生成:', QR_OUTPUT_PATH);
     } else {
       console.error('❌ 微信调起异常:', payParams);
