@@ -2,7 +2,9 @@
 FROM node:20-alpine AS base
 
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+# 国内 ECS 使用阿里云 Alpine 镜像加速 apk
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+    && apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
