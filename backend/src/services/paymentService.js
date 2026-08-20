@@ -6,6 +6,8 @@
 
 const pool = require('../db/pool');
 const logger = require('../utils/logger');
+const wechatPay = require('./wechatPay');
+const alipay = require('./alipay');
 
 /**
  * 生成唯一订单号
@@ -113,30 +115,68 @@ async function initiatePayment(order) {
       };
 
     case 'wechat':
-      // TODO: 接入微信支付 Native/JSAPI SDK
-      // 需要：mch_id, app_id, API v3 密钥, 证书
-      logger.info('微信支付下单占位，订单号:', orderNo);
-      return {
-        gateway: 'wechat',
-        orderId,
-        orderNo,
-        amount: amountYuan,
-        codeUrl: null, // 微信支付二维码内容
-        message: '微信支付 SDK 待接入，请使用 mock 模式测试'
-      };
+      if (!wechatPay.isConfigured()) {
+        return {
+          gateway: 'wechat',
+          orderId,
+          orderNo,
+          amount: amountYuan,
+          codeUrl: null,
+          message: '微信支付未配置，请检查 WECHAT_PAY_* 环境变量'
+        };
+      }
+
+      try {
+        const codeUrl = await wechatPay.createNativeOrder({
+          orderNo,
+          amountFen: toFen(amountYuan),
+          description: `充值 ${amountYuan} CNY`,
+        });
+
+        return {
+          gateway: 'wechat',
+          orderId,
+          orderNo,
+          amount: amountYuan,
+          codeUrl,
+          message: '请使用微信扫码支付'
+        };
+      } catch (error) {
+        logger.error('微信支付下单失败:', error);
+        throw new Error(`微信支付下单失败: ${error.message}`);
+      }
 
     case 'alipay':
-      // TODO: 接入支付宝 SDK
-      // 需要：APPID, 应用私钥, 支付宝公钥
-      logger.info('支付宝下单占位，订单号:', orderNo);
-      return {
-        gateway: 'alipay',
-        orderId,
-        orderNo,
-        amount: amountYuan,
-        orderString: null, // 支付宝 order string
-        message: '支付宝 SDK 待接入，请使用 mock 模式测试'
-      };
+      if (!alipay.isConfigured()) {
+        return {
+          gateway: 'alipay',
+          orderId,
+          orderNo,
+          amount: amountYuan,
+          formHtml: null,
+          message: '支付宝支付未配置，请检查 ALIPAY_* 环境变量'
+        };
+      }
+
+      try {
+        const formHtml = await alipay.createPagePay({
+          orderNo,
+          amountYuan,
+          description: `充值 ${amountYuan} CNY`,
+        });
+
+        return {
+          gateway: 'alipay',
+          orderId,
+          orderNo,
+          amount: amountYuan,
+          formHtml,
+          message: '请在新页面完成支付宝支付'
+        };
+      } catch (error) {
+        logger.error('支付宝下单失败:', error);
+        throw new Error(`支付宝下单失败: ${error.message}`);
+      }
 
     default:
       throw new Error(`不支持的支付方式: ${gateway}`);

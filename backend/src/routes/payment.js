@@ -8,16 +8,20 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const paymentService = require('../services/paymentService');
 const logger = require('../utils/logger');
+const wechatPay = require('../services/wechatPay');
+const alipay = require('../services/alipay');
 
 // 支持的充值金额档位
 const RECHARGE_AMOUNT_OPTIONS = [100, 500, 2000, 10000];
 
-// 支持的支付方式
-const GATEWAY_OPTIONS = [
-  { value: 'mock', label: '模拟支付（测试）', available: true },
-  { value: 'wechat', label: '微信支付', available: false, reason: 'ICP 备案号及商户号未开通' },
-  { value: 'alipay', label: '支付宝', available: false, reason: 'ICP 备案号及商户号未开通' }
-];
+// 支持的支付方式（根据环境变量/证书动态判断是否可用）
+function getGatewayOptions() {
+  return [
+    { value: 'mock', label: '模拟支付（测试）', available: true },
+    { value: 'wechat', label: '微信支付', available: wechatPay.isConfigured(), reason: wechatPay.isConfigured() ? '微信 Native 支付可用' : '微信 API 凭证未配置完整' },
+    { value: 'alipay', label: '支付宝', available: alipay.isConfigured(), reason: alipay.isConfigured() ? '支付宝电脑网站支付可用' : '支付宝 API 凭证未配置完整' }
+  ];
+}
 
 /**
  * 获取支付配置（金额档位、支付方式）
@@ -28,7 +32,7 @@ router.get('/config', (req, res) => {
     success: true,
     data: {
       amountOptions: RECHARGE_AMOUNT_OPTIONS,
-      gateways: GATEWAY_OPTIONS
+      gateways: getGatewayOptions()
     }
   });
 });
@@ -47,15 +51,15 @@ router.post('/create', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, message: '充值金额不能小于 1 元' });
     }
 
-    const supportedGateways = GATEWAY_OPTIONS.map(g => g.value);
+    const supportedGateways = getGatewayOptions().map(g => g.value);
     if (!supportedGateways.includes(gateway)) {
       return res.status(400).json({ success: false, message: `不支持的支付方式: ${gateway}` });
     }
 
-    if (gateway === 'wechat' || gateway === 'alipay') {
+    if (gateway === 'wechat' && !process.env.WECHAT_PAY_MCHID) {
       return res.status(400).json({
         success: false,
-        message: '微信/支付宝支付待 ICP 备案号及商户号开通后启用，当前请使用 mock 模式测试'
+        message: '微信支付待 API 凭证配置后启用，当前请使用 mock 模式测试'
       });
     }
 
@@ -272,16 +276,40 @@ router.post('/mock/callback', async (req, res) => {
  * 微信支付回调
  * POST /api/payment/wechat/callback
  */
-router.post('/wechat/callback', async (req, res) => {
+router.post('/wechat/callback', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
-    // TODO: 接入微信支付 SDK 后实现
+    const rawBody = req.body ? req.body.toString('utf8') : '';
+
+    if (!rawBody) {
+      logger.warn('微信支付回调请求体为空');
+      return res.status(400).send('FAIL');
+    }
+
     // 1. 验证签名
+    const verified = wechatPay.verifyCallbackSignature(req.headers, rawBody);
+    if (!verified) {
+      logger.error('微信支付回调签名验证失败');
+      return res.status(400).send('FAIL');
+    }
+
     // 2. 解密回调数据
-    // 3. 调用 handlePaymentSuccess
-    logger.info('收到微信支付回调，尚未接入 SDK:', req.body);
+    const body = JSON.parse(rawBody);
+    const decrypted = wechatPay.decryptCallbackResource(body);
+    const { out_trade_no, transaction_id, trade_state } = decrypted;
+
+    logger.info('微信支付回调解密成功，订单号:', out_trade_no, '状态:', trade_state);
+
+    // 3. 处理订单状态
+    if (trade_state === 'SUCCESS') {
+      await paymentService.handlePaymentSuccess(out_trade_no, transaction_id, decrypted);
+    } else if (['CLOSED', 'REVOKED', 'PAYERROR'].includes(trade_state)) {
+      await paymentService.handlePaymentFailure(out_trade_no, `trade_state: ${trade_state}`);
+    }
+
     res.status(200).send('SUCCESS');
   } catch (error) {
     logger.error('微信支付回调处理失败:', error);
+    // 返回 500 让微信重试
     res.status(500).send('FAIL');
   }
 });
@@ -292,11 +320,29 @@ router.post('/wechat/callback', async (req, res) => {
  */
 router.post('/alipay/callback', async (req, res) => {
   try {
-    // TODO: 接入支付宝 SDK 后实现
-    // 1. 验证签名
-    // 2. 解析 trade_status
-    // 3. 调用 handlePaymentSuccess / handlePaymentFailure
-    logger.info('收到支付宝回调，尚未接入 SDK:', req.body);
+    const alipay = require('../services/alipay');
+
+    if (!alipay.isConfigured()) {
+      logger.warn('收到支付宝回调，但未配置 ALIPAY_* 环境变量');
+      return res.status(200).send('success');
+    }
+
+    const params = req.body;
+    const verified = alipay.verifyCallback(params);
+
+    if (!verified) {
+      logger.error('支付宝回调签名验证失败');
+      return res.status(400).send('fail');
+    }
+
+    const { out_trade_no, trade_status, trade_no } = params;
+
+    if (trade_status === 'TRADE_SUCCESS' || trade_status === 'TRADE_FINISHED') {
+      await paymentService.handlePaymentSuccess(out_trade_no, trade_no, params);
+    } else if (trade_status === 'TRADE_CLOSED') {
+      await paymentService.handlePaymentFailure(out_trade_no, `trade_status: ${trade_status}`);
+    }
+
     res.status(200).send('success');
   } catch (error) {
     logger.error('支付宝回调处理失败:', error);

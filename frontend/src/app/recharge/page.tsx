@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import { API_BASE, payment } from "@/lib/api";
 import AuthGuard from "@/components/AuthGuard";
@@ -194,16 +195,58 @@ function RechargeContent() {
               <>
                 <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-6">
                   <div className="text-sm text-blue-200 mb-2">
-                    {method === "wechat" ? "请使用微信扫码支付" : "请使用支付宝支付"}
+                    {method === "wechat"
+                      ? "请使用微信扫码支付"
+                      : "请在新页面完成支付宝支付"}
                   </div>
                   <p className="text-xs text-gray-400">
-                    真实支付通道待 ICP 备案号及商户号开通后启用。
+                    {method === "wechat"
+                      ? "请使用微信扫描下方二维码完成支付"
+                      : "点击下方按钮跳转支付宝收银台"}
                   </p>
                 </div>
-                <div className="w-48 h-48 bg-white rounded-xl mx-auto mb-6 flex items-center justify-center">
-                  <QrCode className="w-32 h-32 text-gray-800" />
-                </div>
-                <p className="text-sm text-gray-400 mb-6">模拟二维码</p>
+
+                {method === "wechat" && payParams?.codeUrl ? (
+                  <div className="mb-6">
+                    <div className="bg-white p-3 rounded-xl mx-auto mb-4 w-fit">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payParams.codeUrl)}`}
+                        alt="微信支付二维码"
+                        className="w-48 h-48"
+                      />
+                    </div>
+                    <p className="text-sm text-gray-400 mb-6">请使用微信扫一扫完成支付</p>
+                  </div>
+                ) : method === "alipay" && payParams?.formHtml ? (
+                  <div className="mb-6">
+                    <div
+                      dangerouslySetInnerHTML={{ __html: payParams.formHtml }}
+                      className="hidden"
+                      id="alipay-form-container"
+                    />
+                    <button
+                      onClick={() => {
+                        const form = document.querySelector(
+                          '#alipay-form-container form'
+                        ) as HTMLFormElement | null;
+                        form?.submit();
+                      }}
+                      className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-xl font-bold text-lg transition flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                      跳转支付宝支付
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-48 h-48 bg-white rounded-xl mx-auto mb-6 flex items-center justify-center">
+                      <QrCode className="w-32 h-32 text-gray-800" />
+                    </div>
+                    <p className="text-sm text-gray-400 mb-6">等待支付参数...</p>
+                  </>
+                )}
+
                 <button
                   onClick={handleGoToResult}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium transition"

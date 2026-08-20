@@ -10,6 +10,9 @@ RUN npm ci --only=production
 # 复制源码
 COPY src ./src
 
+# 复制支付密钥证书
+COPY certs ./certs
+
 ENV NODE_ENV=production
 ENV PORT=3001
 

@@ -50,6 +50,10 @@ app.use(rateLimit({
 
 // 日志
 app.use(morgan('combined', { stream: { write: msg => logger.info(msg.trim()) } }));
+
+// 微信支付回调需要原始请求体验证签名，必须放在 express.json 之前
+app.use('/api/payment/wechat/callback', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 

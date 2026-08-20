@@ -41,6 +41,20 @@ services:
       - NEWAPI_BASE_URL=http://newapi:3000/v1
       - NEWAPI_API_KEY=${NEWAPI_API_KEY}
       - LOG_LEVEL=info
+      # 微信支付
+      - WECHAT_PAY_MCHID=${WECHAT_PAY_MCHID}
+      - WECHAT_PAY_APPID=${WECHAT_PAY_APPID}
+      - WECHAT_PAY_APIV3_KEY=${WECHAT_PAY_APIV3_KEY}
+      - WECHAT_PAY_SERIAL=${WECHAT_PAY_SERIAL}
+      - WECHAT_PAY_PRIVATE_KEY_PATH=./certs/wechat/apiclient_key.pem
+      - WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH=./certs/wechat/wechatpay_public_key.pem
+      - WECHAT_PAY_PLATFORM_KEY_ID=${WECHAT_PAY_PLATFORM_KEY_ID}
+      - WECHAT_PAY_NOTIFY_URL=https://${DOMAIN:-csdp-agentwork.com}/api/payment/wechat/callback
+      # 支付宝
+      - ALIPAY_APP_ID=${ALIPAY_APP_ID}
+      - ALIPAY_PRIVATE_KEY_PATH=./certs/alipay/app-private-key.pem
+      - ALIPAY_PUBLIC_KEY_PATH=./certs/alipay/alipay-public-key.pem
+      - ALIPAY_NOTIFY_URL=https://${DOMAIN:-csdp-agentwork.com}/api/payment/alipay/callback
     networks:
       - opc-network
     depends_on:
