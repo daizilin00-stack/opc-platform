@@ -1,9 +1,9 @@
 const express = require('express');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 const router = express.Router();
 
-// 收益总览（需认证）
-router.get('/summary', authenticate, async (req, res) => {
+// 收益总览（需认证 + 实名认证）
+router.get('/summary', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
 
   res.json({
@@ -15,8 +15,8 @@ router.get('/summary', authenticate, async (req, res) => {
   });
 });
 
-// 结算历史（需认证）
-router.get('/history', authenticate, async (req, res) => {
+// 结算历史（需认证 + 实名认证）
+router.get('/history', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
 
   res.json({
@@ -29,8 +29,8 @@ router.get('/history', authenticate, async (req, res) => {
   });
 });
 
-// 提现申请（需认证）
-router.post('/withdraw', authenticate, async (req, res) => {
+// 提现申请（需认证 + 实名认证）
+router.post('/withdraw', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
   const { amount, method, account } = req.body;
 

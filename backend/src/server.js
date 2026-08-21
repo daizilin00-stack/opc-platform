@@ -82,7 +82,7 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/consumptions', consumptionRoutes);
 app.use('/api/v1/withdrawal', withdrawalRouter);
 app.use('/api/v1/admin', adminWithdrawalRoutes);
-app.use('/api/v1/deploy', deployRoutes);
+app.use('/api/v1/deploy', deployRoutes(pool));
 app.use('/api/payment', paymentRoutes);
 
 // 404 和错误处理

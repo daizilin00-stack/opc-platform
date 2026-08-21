@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 
 /**
  * 提现风控检查器
@@ -289,7 +289,7 @@ class WithdrawRiskChecker {
  */
 
 // 用户发起提现申请
-router.post('/withdraw', authenticate, async (req, res) => {
+router.post('/withdraw', authenticate, requireVerifiedUser, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -412,7 +412,7 @@ router.post('/withdraw', authenticate, async (req, res) => {
 });
 
 // 用户查询提现记录
-router.get('/withdraw/history', authenticate, async (req, res) => {
+router.get('/withdraw/history', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const user_id = req.user.id;
     const { status, limit = 20, offset = 0 } = req.query;
@@ -461,7 +461,7 @@ router.get('/withdraw/history', authenticate, async (req, res) => {
 });
 
 // 用户查询单条提现详情
-router.get('/withdraw/:id', authenticate, async (req, res) => {
+router.get('/withdraw/:id', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const user_id = req.user.id;
     const withdraw_id = req.params.id;
@@ -502,7 +502,7 @@ router.get('/withdraw/:id', authenticate, async (req, res) => {
 });
 
 // 用户取消待审核提现
-router.post('/withdraw/:id/cancel', authenticate, async (req, res) => {
+router.post('/withdraw/:id/cancel', authenticate, requireVerifiedUser, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

@@ -1,12 +1,12 @@
 const express = require('express');
 const pool = require('../db/pool');
 const logger = require('../utils/logger');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 const { TOKEN_PACKAGES, PROMOTION_PACKAGES, NETWORK_SERVICES, IP_SERVICES, TRAFFIC_PACKAGES, calculateTokenCost } = require('../config/pricing');
 const router = express.Router();
 
 // 获取用户钱包余额
-router.get('/wallet', authenticate, async (req, res) => {
+router.get('/wallet', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
 
   try {
@@ -32,7 +32,7 @@ router.get('/wallet', authenticate, async (req, res) => {
 });
 
 // 充值钱包
-router.post('/wallet/recharge', authenticate, async (req, res) => {
+router.post('/wallet/recharge', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
   const { amount, paymentMethod } = req.body;
 
@@ -65,7 +65,7 @@ router.post('/wallet/recharge', authenticate, async (req, res) => {
 });
 
 // 获取Token用量统计
-router.get('/token/usage', authenticate, async (req, res) => {
+router.get('/token/usage', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
   const { period = 'current_month' } = req.query;
 
@@ -115,7 +115,7 @@ router.get('/token/usage', authenticate, async (req, res) => {
 });
 
 // 获取Token明细
-router.get('/token/details', authenticate, async (req, res) => {
+router.get('/token/details', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
   const { limit = 50, offset = 0 } = req.query;
 
@@ -147,7 +147,7 @@ router.get('/token/details', authenticate, async (req, res) => {
 });
 
 // 记录Token用量（内部API，由AI员工调用时触发）
-router.post('/token/record', authenticate, async (req, res) => {
+router.post('/token/record', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
   const { agentType, modelName, promptTokens, completionTokens, costCny } = req.body;
 
@@ -184,7 +184,7 @@ router.post('/token/record', authenticate, async (req, res) => {
 });
 
 // 获取计费套餐
-router.get('/packages', authenticate, async (req, res) => {
+router.get('/packages', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     res.json({ 
       tokenPackages: TOKEN_PACKAGES,

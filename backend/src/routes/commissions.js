@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 
 /**
  * 佣金系统
@@ -54,7 +54,7 @@ router.post('/calculate', authenticate, async (req, res) => {
 });
 
 // 获取佣金记录
-router.get('/my', authenticate, async (req, res) => {
+router.get('/my', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const user_id = req.user.id;
     const { role = 'assignee', limit = 50, offset = 0 } = req.query;

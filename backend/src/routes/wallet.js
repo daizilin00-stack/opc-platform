@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 
 /**
  * 钱包系统
@@ -9,7 +9,7 @@ const { authenticate } = require('../middleware/auth');
  */
 
 // 获取钱包信息
-router.get('/info', authenticate, async (req, res) => {
+router.get('/info', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const user_id = req.user.id;
     
@@ -44,7 +44,7 @@ router.get('/info', authenticate, async (req, res) => {
 });
 
 // 充值（创建充值订单）
-router.post('/recharge', authenticate, async (req, res) => {
+router.post('/recharge', authenticate, requireVerifiedUser, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -93,7 +93,7 @@ router.post('/recharge', authenticate, async (req, res) => {
 });
 
 // 确认充值（管理员/系统自动确认）
-router.post('/recharge/confirm', authenticate, async (req, res) => {
+router.post('/recharge/confirm', authenticate, requireVerifiedUser, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -174,7 +174,7 @@ router.post('/recharge/confirm', authenticate, async (req, res) => {
 });
 
 // 交易记录
-router.get('/transactions', authenticate, async (req, res) => {
+router.get('/transactions', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const user_id = req.user.id;
     const { type, limit = 50, offset = 0 } = req.query;
@@ -229,7 +229,7 @@ router.get('/transactions', authenticate, async (req, res) => {
 // 完整风控 + 审批流程请使用 POST /api/withdrawal/withdraw
 
 // 新用户注册奖励（15元Token）
-router.post('/new-user-bonus', authenticate, async (req, res) => {
+router.post('/new-user-bonus', authenticate, requireVerifiedUser, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

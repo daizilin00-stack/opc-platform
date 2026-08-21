@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 const DeployService = require('../services/deployService');
 
 module.exports = (db) => {
@@ -10,7 +10,7 @@ module.exports = (db) => {
    * 创建 Agent
    * POST /api/v1/deploy/agents
    */
-  router.post('/agents', authenticate, async (req, res) => {
+  router.post('/agents', authenticate, requireVerifiedUser, async (req, res) => {
     try {
       const { name, description, template, model, config, resources } = req.body;
       
@@ -97,7 +97,7 @@ module.exports = (db) => {
    * 启动 Agent
    * POST /api/v1/deploy/agents/:id/start
    */
-  router.post('/agents/:id/start', authenticate, async (req, res) => {
+  router.post('/agents/:id/start', authenticate, requireVerifiedUser, async (req, res) => {
     try {
       const agent = await deployService.getAgent(req.params.id);
       
@@ -127,7 +127,7 @@ module.exports = (db) => {
    * 停止 Agent
    * POST /api/v1/deploy/agents/:id/stop
    */
-  router.post('/agents/:id/stop', authenticate, async (req, res) => {
+  router.post('/agents/:id/stop', authenticate, requireVerifiedUser, async (req, res) => {
     try {
       const agent = await deployService.getAgent(req.params.id);
       
@@ -157,7 +157,7 @@ module.exports = (db) => {
    * 删除 Agent
    * DELETE /api/v1/deploy/agents/:id
    */
-  router.delete('/agents/:id', authenticate, async (req, res) => {
+  router.delete('/agents/:id', authenticate, requireVerifiedUser, async (req, res) => {
     try {
       const agent = await deployService.getAgent(req.params.id);
       

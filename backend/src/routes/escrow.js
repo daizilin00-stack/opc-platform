@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 
 /**
  * Escrow 托管系统
@@ -10,7 +10,7 @@ const { authenticate } = require('../middleware/auth');
  */
 
 // 创建 escrow（发布方支付任务款）
-router.post('/create', authenticate, async (req, res) => {
+router.post('/create', authenticate, requireVerifiedUser, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -102,7 +102,7 @@ router.post('/create', authenticate, async (req, res) => {
 });
 
 // 接单方确认接单（资金已托管）
-router.post('/accept', authenticate, async (req, res) => {
+router.post('/accept', authenticate, requireVerifiedUser, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -155,7 +155,7 @@ router.post('/accept', authenticate, async (req, res) => {
 });
 
 // 接单方提交交付物
-router.post('/submit', authenticate, async (req, res) => {
+router.post('/submit', authenticate, requireVerifiedUser, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -216,7 +216,7 @@ router.post('/submit', authenticate, async (req, res) => {
 });
 
 // 发布方验收（通过/拒绝）
-router.post('/review', authenticate, async (req, res) => {
+router.post('/review', authenticate, requireVerifiedUser, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -347,7 +347,7 @@ router.post('/review', authenticate, async (req, res) => {
 });
 
 // 获取 escrow 详情
-router.get('/:escrow_id', authenticate, async (req, res) => {
+router.get('/:escrow_id', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const { escrow_id } = req.params;
     const user_id = req.user.id;
@@ -377,7 +377,7 @@ router.get('/:escrow_id', authenticate, async (req, res) => {
 });
 
 // 我的 escrow 列表
-router.get('/my/list', authenticate, async (req, res) => {
+router.get('/my/list', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const user_id = req.user.id;
     const { status, role } = req.query; // role: 'publisher' | 'assignee'

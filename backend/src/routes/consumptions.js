@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const logger = require('../utils/logger');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 const router = express.Router();
 
 // 记录消费（内部API，由网关调用）
@@ -53,7 +53,7 @@ router.post('/', async (req, res) => {
 });
 
 // 获取当前用户的消费记录
-router.get('/my', authenticate, async (req, res) => {
+router.get('/my', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
   const { page = 1, limit = 20, serviceType, startDate, endDate } = req.query;
 
@@ -103,7 +103,7 @@ router.get('/my', authenticate, async (req, res) => {
 });
 
 // 获取消费汇总（日/周/月）
-router.get('/summary', authenticate, async (req, res) => {
+router.get('/summary', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
   const { period = 'month' } = req.query; // day, week, month
 
@@ -149,7 +149,7 @@ router.get('/summary', authenticate, async (req, res) => {
 });
 
 // 导出消费记录
-router.get('/export', authenticate, async (req, res) => {
+router.get('/export', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
   const { startDate, endDate, format = 'csv' } = req.query;
 

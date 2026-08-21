@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const logger = require('../utils/logger');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 const router = express.Router();
 
 // 任务列表（公开）
@@ -68,8 +68,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 接单（需认证）
-router.post('/:id/claim', authenticate, async (req, res) => {
+// 接单（需认证 + 实名认证）
+router.post('/:id/claim', authenticate, requireVerifiedUser, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
@@ -121,8 +121,8 @@ router.post('/:id/claim', authenticate, async (req, res) => {
   }
 });
 
-// 提交交付物（需认证）
-router.post('/:id/submit', authenticate, async (req, res) => {
+// 提交交付物（需认证 + 实名认证）
+router.post('/:id/submit', authenticate, requireVerifiedUser, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
   const { deliverables, notes } = req.body;
@@ -168,8 +168,8 @@ router.post('/:id/submit', authenticate, async (req, res) => {
   }
 });
 
-// 我的任务（需认证）
-router.get('/my/list', authenticate, async (req, res) => {
+// 我的任务（需认证 + 实名认证）
+router.get('/my/list', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
 
   try {

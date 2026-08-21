@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 const paymentService = require('../services/paymentService');
 const logger = require('../utils/logger');
 const wechatPay = require('../services/wechatPay');
@@ -42,7 +42,7 @@ router.get('/config', (req, res) => {
  * POST /api/payment/create
  * Body: { amount: number, gateway: 'mock' | 'wechat' | 'alipay' }
  */
-router.post('/create', authenticate, async (req, res) => {
+router.post('/create', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const { amount, gateway = 'mock' } = req.body;
     const userId = req.user.id;
@@ -95,7 +95,7 @@ router.post('/create', authenticate, async (req, res) => {
  * 调起支付
  * POST /api/payment/:orderId/pay
  */
-router.post('/:orderId/pay', authenticate, async (req, res) => {
+router.post('/:orderId/pay', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const { orderId } = req.params;
     const userId = req.user.id;
@@ -130,7 +130,7 @@ router.post('/:orderId/pay', authenticate, async (req, res) => {
  * 查询订单列表
  * GET /api/payment/orders?status=&limit=20&offset=0
  */
-router.get('/orders', authenticate, async (req, res) => {
+router.get('/orders', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const userId = req.user.id;
     const { status, limit = 20, offset = 0 } = req.query;
@@ -164,7 +164,7 @@ router.get('/orders', authenticate, async (req, res) => {
  * 查询单个订单
  * GET /api/payment/orders/:orderId
  */
-router.get('/orders/:orderId', authenticate, async (req, res) => {
+router.get('/orders/:orderId', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const { orderId } = req.params;
     const userId = req.user.id;
@@ -204,7 +204,7 @@ router.get('/orders/:orderId', authenticate, async (req, res) => {
  * POST /api/payment/mock/auto-pay
  * Body: { orderNo: string }
  */
-router.post('/mock/auto-pay', authenticate, async (req, res) => {
+router.post('/mock/auto-pay', authenticate, requireVerifiedUser, async (req, res) => {
   try {
     const { orderNo } = req.body;
 
