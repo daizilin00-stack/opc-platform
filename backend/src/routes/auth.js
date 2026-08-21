@@ -202,10 +202,33 @@ router.post('/verify-id', authenticate, async (req, res) => {
 
     await pool.query(
       `UPDATE users
-       SET real_name = $1, id_card_hash = $2, id_card_masked = $3, id_card_verified = TRUE, id_card_verified_at = CURRENT_TIMESTAMP
+       SET real_name = $1, id_card_hash = $2, id_card_masked = $3,
+           id_card_verified = TRUE, id_card_verified_at = CURRENT_TIMESTAMP,
+           service_enabled = TRUE, service_enabled_at = CURRENT_TIMESTAMP
        WHERE id = $4`,
       [realName, idCardHash, idCardMasked, userId]
     );
+
+    // 个人账号完成实名后直接开通软件服务（Token、硅基员工）
+    if (accountType === 'individual') {
+      await pool.query(
+        `INSERT INTO user_services (
+          user_id,
+          silicon_employee_enabled, silicon_employee_enabled_at,
+          token_market_enabled, token_market_enabled_at,
+          contract_signed, contract_signed_at
+        ) VALUES ($1, TRUE, CURRENT_TIMESTAMP, TRUE, CURRENT_TIMESTAMP, TRUE, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id) DO UPDATE SET
+          silicon_employee_enabled = TRUE,
+          silicon_employee_enabled_at = CURRENT_TIMESTAMP,
+          token_market_enabled = TRUE,
+          token_market_enabled_at = CURRENT_TIMESTAMP,
+          contract_signed = TRUE,
+          contract_signed_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP`,
+        [userId]
+      );
+    }
 
     logger.info(`实名认证通过,用户 ${userId}, 类型: ${accountType}`);
 

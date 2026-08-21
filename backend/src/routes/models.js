@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, requireCompanyAuth } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 const { chatCompletion, chatCompletionStream, MODEL_CONFIGS, estimateTokens } = require('../services/modelProxy');
 const { calculateTokenCost } = require('../config/pricing');
 const pool = require('../db/pool');
@@ -76,7 +76,7 @@ router.get('/', authenticate, async (req, res) => {
  *     "maxTokens": 2048
  *   }
  */
-router.post('/chat', authenticate, requireCompanyAuth, async (req, res) => {
+router.post('/chat', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
   const { model, messages, temperature = 0.7, maxTokens = 2048 } = req.body;
 
@@ -133,7 +133,7 @@ router.post('/chat', authenticate, requireCompanyAuth, async (req, res) => {
  * 请求体: 同 /chat
  * 响应: Server-Sent Events 流
  */
-router.post('/chat/stream', authenticate, requireCompanyAuth, async (req, res) => {
+router.post('/chat/stream', authenticate, requireVerifiedUser, async (req, res) => {
   const userId = req.user.id;
   const { model, messages, temperature = 0.7, maxTokens = 2048 } = req.body;
 

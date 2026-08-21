@@ -1,9 +1,9 @@
 const express = require('express');
-const { authenticate, requireCompanyAuth } = require('../middleware/auth');
+const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 const router = express.Router();
 
 // 召唤数字员工（需认证 + 企业认证）
-router.post('/invoke', authenticate, requireCompanyAuth, async (req, res) => {
+router.post('/invoke', authenticate, requireVerifiedUser, async (req, res) => {
   const { agentType, context, taskId, message } = req.body;
   const userId = req.user.id;
 
