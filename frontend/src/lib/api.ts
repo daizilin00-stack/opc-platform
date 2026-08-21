@@ -27,10 +27,10 @@ async function request(path: string, options: any = {}) {
 }
 
 export const auth = {
-  register: (phone: string, password: string, realName: string) =>
+  register: (phone: string, password: string, realName: string, accountType: 'individual' | 'enterprise' = 'individual') =>
     request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ phone, password, realName }),
+      body: JSON.stringify({ phone, password, realName, accountType }),
     }),
 
   login: (phone: string, password: string) =>

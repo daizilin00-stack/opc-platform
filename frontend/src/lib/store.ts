@@ -8,6 +8,7 @@ interface User {
   skills: string[];
   creditScore: number;
   level: number;
+  accountType?: 'individual' | 'enterprise';
   token: string;
 }
 

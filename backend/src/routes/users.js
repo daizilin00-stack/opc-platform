@@ -10,7 +10,7 @@ router.get('/me', authenticate, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT id, phone, real_name, avatar, status, level, credit_score,
+      `SELECT id, phone, real_name, avatar, status, level, credit_score, account_type,
               skills, certifications, earnings_total, earnings_pending,
               created_at, last_login, verified_at
        FROM users WHERE id = $1`,
@@ -27,6 +27,7 @@ router.get('/me', authenticate, async (req, res) => {
       phone: user.phone,
       realName: user.real_name,
       avatar: user.avatar,
+      accountType: user.account_type || 'individual',
       level: user.level,
       creditScore: user.credit_score,
       skills: user.skills || [],

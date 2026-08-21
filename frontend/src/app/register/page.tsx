@@ -7,7 +7,7 @@ import api from '@/lib/api';
 import { useStore } from '@/lib/store';
 
 export default function RegisterPage() {
-  const [step, setStep] = useState('register'); // register | id-verify | license-upload | company-verify | contract-sign | complete
+  const [step, setStep] = useState('register');
   const [licensePreview, setLicensePreview] = useState<string | null>(null);
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [form, setForm] = useState({
@@ -17,20 +17,38 @@ export default function RegisterPage() {
     idCard: '',
     companyName: '',
     registrationNo: '',
-    companyType: 'existing_upload', // 默认已有公司，需要上传营业执照
+    companyType: 'existing_upload',
     contractAgreed: false,
+    accountType: 'individual' as 'individual' | 'enterprise',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
   const login = useStore((state) => state.login);
 
+  const isEnterprise = form.accountType === 'enterprise';
+
+  const stepItems = isEnterprise
+    ? [
+        { key: 'register', label: '注册' },
+        { key: 'id-verify', label: '实名' },
+        { key: 'license-upload', label: '执照' },
+        { key: 'company-verify', label: '企业' },
+        { key: 'contract-sign', label: '签约' },
+        { key: 'complete', label: '开通' },
+      ]
+    : [
+        { key: 'register', label: '注册' },
+        { key: 'id-verify', label: '实名' },
+        { key: 'complete', label: '开通' },
+      ];
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      const res = await api.auth.register(form.phone, form.password, form.realName);
+      const res = await api.auth.register(form.phone, form.password, form.realName, form.accountType);
       if (res?.token) {
         login({
           id: res.user.id,
@@ -39,6 +57,7 @@ export default function RegisterPage() {
           skills: res.user.skills || [],
           creditScore: res.user.creditScore || 100,
           level: res.user.level || 1,
+          accountType: res.user.accountType || 'individual',
           token: res.token,
         });
         setStep('id-verify');
@@ -58,7 +77,11 @@ export default function RegisterPage() {
     setError('');
     try {
       await api.auth.verifyId(form.idCard, form.realName);
-      setStep('license-upload');
+      if (isEnterprise) {
+        setStep('license-upload');
+      } else {
+        setStep('complete');
+      }
     } catch (err: any) {
       setError(err.message || '实名认证失败，请重试');
     } finally {
@@ -75,9 +98,7 @@ export default function RegisterPage() {
     setLoading(true);
     setError('');
     try {
-      // 模拟上传营业执照到服务器
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // 保存营业执照信息到 localStorage（实际应上传到服务器）
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       if (licensePreview) {
         localStorage.setItem('businessLicense', licensePreview);
         localStorage.setItem('businessLicenseName', licenseFile?.name || '营业执照');
@@ -122,23 +143,14 @@ export default function RegisterPage() {
     }
   };
 
-  const stepItems = [
-    { key: 'register', label: '注册' },
-    { key: 'id-verify', label: '实名' },
-    { key: 'license-upload', label: '执照' },
-    { key: 'company-verify', label: '企业' },
-    { key: 'contract-sign', label: '签约' },
-    { key: 'complete', label: '开通' }
-  ];
-
-  const isStepCompleted = (stepKey: string, index: number) => {
-    const currentIndex = stepItems.findIndex(s => s.key === step);
-    if (step === 'complete') return index < 5;
+  const isStepCompleted = (index: number) => {
+    const currentIndex = stepItems.findIndex((s) => s.key === step);
+    if (step === 'complete') return index < stepItems.length - 1;
     return index < currentIndex;
   };
 
   const isStepActive = (stepKey: string, index: number) => {
-    return step === stepKey || isStepCompleted(stepKey, index);
+    return step === stepKey || isStepCompleted(index);
   };
 
   return (
@@ -156,17 +168,21 @@ export default function RegisterPage() {
         <div className="flex items-center justify-between mb-6 overflow-x-auto">
           {stepItems.map((s, i) => (
             <div key={s.key} className="flex items-center flex-shrink-0">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                isStepActive(s.key, i) ? 'bg-brand-600 text-white' : 'bg-gray-200 text-gray-500'
-              }`}>
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                  isStepActive(s.key, i) ? 'bg-brand-600 text-white' : 'bg-gray-200 text-gray-500'
+                }`}
+              >
                 {i + 1}
               </div>
-              <span className={`ml-1 text-xs ${
-                step === s.key ? 'text-brand-600 font-bold' : 'text-gray-500'
-              }`}>
+              <span
+                className={`ml-1 text-xs ${
+                  step === s.key ? 'text-brand-600 font-bold' : 'text-gray-500'
+                }`}
+              >
                 {s.label}
               </span>
-              {i < 5 && <div className="w-4 h-px bg-gray-200 mx-1" />}
+              {i < stepItems.length - 1 && <div className="w-4 h-px bg-gray-200 mx-1" />}
             </div>
           ))}
         </div>
@@ -182,6 +198,39 @@ export default function RegisterPage() {
           {step === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">选择身份类型</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, accountType: 'individual' })}
+                    className={`py-3 px-4 rounded-lg border-2 text-sm font-medium transition-colors ${
+                      form.accountType === 'individual'
+                        ? 'border-brand-600 bg-brand-50 text-brand-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    👤 个人创业者
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, accountType: 'enterprise' })}
+                    className={`py-3 px-4 rounded-lg border-2 text-sm font-medium transition-colors ${
+                      form.accountType === 'enterprise'
+                        ? 'border-brand-600 bg-brand-50 text-brand-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    🏢 企业或团队
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {isEnterprise
+                    ? '企业账号可使用全部服务，包括跨境专线与硬件资源。'
+                    : '个人账号可使用 Token 团购、硅基员工等软件服务，无需营业执照。'}
+                </p>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">手机号</label>
                 <input
                   type="tel"
@@ -189,7 +238,7 @@ export default function RegisterPage() {
                   placeholder="13800000000"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   value={form.phone}
-                  onChange={e => setForm({ ...form, phone: e.target.value })}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 />
               </div>
               <div>
@@ -200,7 +249,7 @@ export default function RegisterPage() {
                   placeholder="与身份证一致"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   value={form.realName}
-                  onChange={e => setForm({ ...form, realName: e.target.value })}
+                  onChange={(e) => setForm({ ...form, realName: e.target.value })}
                 />
               </div>
               <div>
@@ -211,7 +260,7 @@ export default function RegisterPage() {
                   placeholder="至少 6 位"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   value={form.password}
-                  onChange={e => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
               </div>
               <button
@@ -232,7 +281,8 @@ export default function RegisterPage() {
             <form onSubmit={handleIdVerify} className="space-y-4">
               <div className="bg-brand-50 p-4 rounded-lg mb-4">
                 <p className="text-sm text-brand-700">
-                  ⚠️ 根据《网络安全法》要求，使用平台服务需完成实名认证
+                  ⚠️ 根据《网络安全法》《反电信网络诈骗法》要求，使用平台服务需完成实名认证。
+                  我们仅核验姓名与身份证号，不存储身份证原件，不对外展示。
                 </p>
               </div>
               <div>
@@ -243,7 +293,7 @@ export default function RegisterPage() {
                   placeholder="与身份证一致"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   value={form.realName}
-                  onChange={e => setForm({ ...form, realName: e.target.value })}
+                  onChange={(e) => setForm({ ...form, realName: e.target.value })}
                 />
               </div>
               <div>
@@ -254,7 +304,7 @@ export default function RegisterPage() {
                   placeholder="18位身份证号码"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   value={form.idCard}
-                  onChange={e => setForm({ ...form, idCard: e.target.value })}
+                  onChange={(e) => setForm({ ...form, idCard: e.target.value })}
                 />
               </div>
               <button
@@ -267,15 +317,13 @@ export default function RegisterPage() {
             </form>
           )}
 
-          {/* 步骤 3：营业执照上传 */}
-          {step === 'license-upload' && (
+          {/* 步骤 3：营业执照上传（仅企业） */}
+          {step === 'license-upload' && isEnterprise && (
             <form onSubmit={handleLicenseUpload} className="space-y-4">
               <div className="bg-accent-50 border border-accent-200 p-4 rounded-lg mb-4">
-                <p className="text-sm text-accent-700 font-bold mb-1">
-                  📄 必须上传营业执照
-                </p>
+                <p className="text-sm text-accent-700 font-bold mb-1">📄 上传营业执照</p>
                 <p className="text-sm text-accent-600">
-                  根据平台合规要求，使用跨境网络服务必须提供企业营业执照。个人用户请注册个体工商户营业执照后上传。
+                  企业账号使用跨境网络服务需提供企业营业执照，用于平台合规审核与合同存档。
                 </p>
               </div>
 
@@ -325,7 +373,7 @@ export default function RegisterPage() {
                   <br />3. 后台客户信息管理系统备份
                 </p>
               </div>
-              
+
               <button
                 type="submit"
                 disabled={loading || !licenseFile}
@@ -336,15 +384,13 @@ export default function RegisterPage() {
             </form>
           )}
 
-          {/* 步骤 4：企业认证 */}
-          {step === 'company-verify' && (
+          {/* 步骤 4：企业认证（仅企业） */}
+          {step === 'company-verify' && isEnterprise && (
             <form onSubmit={handleCompanyVerify} className="space-y-4">
               <div className="bg-brand-50 p-4 rounded-lg mb-4">
-                <p className="text-sm text-brand-700">
-                  ✅ 营业执照已上传，请补充企业信息
-                </p>
+                <p className="text-sm text-brand-700">✅ 营业执照已上传，请补充企业信息</p>
               </div>
-              
+
               <div className="flex gap-2 mb-4">
                 <button
                   type="button"
@@ -378,7 +424,7 @@ export default function RegisterPage() {
                   placeholder="企业全称（与营业执照一致）"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   value={form.companyName}
-                  onChange={e => setForm({ ...form, companyName: e.target.value })}
+                  onChange={(e) => setForm({ ...form, companyName: e.target.value })}
                 />
               </div>
               <div>
@@ -391,10 +437,10 @@ export default function RegisterPage() {
                   placeholder="18位代码（与营业执照一致）"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   value={form.registrationNo}
-                  onChange={e => setForm({ ...form, registrationNo: e.target.value })}
+                  onChange={(e) => setForm({ ...form, registrationNo: e.target.value })}
                 />
               </div>
-              
+
               <button
                 type="submit"
                 disabled={loading}
@@ -405,8 +451,8 @@ export default function RegisterPage() {
             </form>
           )}
 
-          {/* 步骤 5：电子合同签署 */}
-          {step === 'contract-sign' && (
+          {/* 步骤 5：电子合同签署（仅企业） */}
+          {step === 'contract-sign' && isEnterprise && (
             <form onSubmit={handleContractSign} className="space-y-4">
               <div className="bg-brand-50 p-4 rounded-lg mb-4">
                 <p className="text-sm text-brand-700 font-bold mb-2">
@@ -433,7 +479,7 @@ export default function RegisterPage() {
                   type="checkbox"
                   className="mt-1 w-4 h-4 text-brand-600 rounded border-gray-300 focus:ring-brand-500"
                   checked={form.contractAgreed}
-                  onChange={e => setForm({ ...form, contractAgreed: e.target.checked })}
+                  onChange={(e) => setForm({ ...form, contractAgreed: e.target.checked })}
                 />
                 <span className="text-sm text-gray-700">
                   我已阅读并同意《OPC 数字平台网络服务协议》，确认提供的信息真实有效，承诺合法使用平台服务
@@ -450,16 +496,17 @@ export default function RegisterPage() {
             </form>
           )}
 
-          {/* 步骤 6：开通完成 */}
+          {/* 步骤 6/3：开通完成 */}
           {step === 'complete' && (
             <div className="text-center py-8">
               <div className="text-6xl mb-4">🎉</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">服务开通成功！</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                {isEnterprise ? '企业账号开通成功！' : '个人账号开通成功！'}
+              </h3>
               <p className="text-gray-600 mb-2">
-                您的营业执照和合同已安全存档
-              </p>
-              <p className="text-sm text-gray-500 mb-6">
-                欢迎来到 OPC 数字平台，您的 AI 数字员工已就绪
+                {isEnterprise
+                  ? '您的营业执照和合同已安全存档，可进入工作台使用全部服务。'
+                  : '实名认证已完成，可进入工作台使用基础软件服务。'}
               </p>
 
               <div className="space-y-3 mb-6">
@@ -469,11 +516,20 @@ export default function RegisterPage() {
                   <p className="text-sm text-green-700">Token 团购中心 — 优惠购买大模型 API</p>
                 </div>
 
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm font-bold text-blue-800">📄 已存档资料</p>
-                  <p className="text-sm text-blue-700">营业执照：已上传并备份</p>
-                  <p className="text-sm text-blue-700">服务协议：已签署并备份</p>
-                </div>
+                {isEnterprise ? (
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm font-bold text-blue-800">📄 已存档资料</p>
+                    <p className="text-sm text-blue-700">营业执照：已上传并备份</p>
+                    <p className="text-sm text-blue-700">服务协议：已签署并备份</p>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 p-3 rounded-lg">
+                    <p className="text-sm font-bold text-yellow-800">💡 需要更多服务？</p>
+                    <p className="text-sm text-yellow-700">
+                      如需使用跨境专线、OpenClaw 部署等硬件资源，可在设置中升级为企业认证。
+                    </p>
+                  </div>
+                )}
               </div>
 
               <button

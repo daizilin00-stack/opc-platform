@@ -10,15 +10,37 @@ const router = express.Router();
 function generateToken(user) {
   // 安全建议:accessToken 过期时间建议 <= 24h,refreshToken 机制另建
   return jwt.sign(
-    { id: user.id, phone: user.phone, real_name: user.real_name, role: user.role || 'user' },
+    { id: user.id, phone: user.phone, real_name: user.real_name, role: user.role || 'user', account_type: user.account_type },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 }
 
+// 根据账号类型和认证状态计算下一步
+function getNextStep(user) {
+  if (!user.id_card_verified) {
+    return 'id_verification';
+  }
+
+  // 个人用户：完成身份证实名后即可使用基础服务
+  if (user.account_type === 'individual') {
+    return null;
+  }
+
+  // 企业用户：继续走企业认证 + 合同签署
+  if (!user.company_verified) {
+    return 'company_verification';
+  }
+  if (!user.service_enabled) {
+    return 'contract_signing';
+  }
+
+  return null;
+}
+
 // 注册
 router.post('/register', async (req, res) => {
-  const { phone, password, realName, skills } = req.body;
+  const { phone, password, realName, skills, accountType = 'individual' } = req.body;
 
   // 安全建议:应使用 express-validator 做严格校验:
   // - phone: ^1[3-9]\d{9}$,长度限制 11 位
@@ -27,6 +49,9 @@ router.post('/register', async (req, res) => {
   if (!phone || !password) {
     return res.status(400).json({ error: '手机号和密码不能为空' });
   }
+
+  // 账号类型校验
+  const validAccountType = accountType === 'enterprise' ? 'enterprise' : 'individual';
 
   try {
     // 检查手机号是否已存在
@@ -40,16 +65,16 @@ router.post('/register', async (req, res) => {
 
     // 插入用户
     const result = await pool.query(
-      `INSERT INTO users (phone, password_hash, real_name, skills, status, level, credit_score, role)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, phone, real_name, skills, status, level, credit_score, role, created_at`,
-      [phone, passwordHash, realName || null, skills || [], 'pending_verification', 1, 100, 'user']
+      `INSERT INTO users (phone, password_hash, real_name, skills, status, level, credit_score, role, account_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, phone, real_name, skills, status, level, credit_score, role, account_type, created_at`,
+      [phone, passwordHash, realName || null, skills || [], 'pending_verification', 1, 100, 'user', validAccountType]
     );
 
     const user = result.rows[0];
     const token = generateToken(user);
 
-    logger.info(`新用户注册: ${user.phone}`);
+    logger.info(`新用户注册: ${user.phone}, 类型: ${validAccountType}`);
 
     res.status(201).json({
       message: '注册成功',
@@ -60,9 +85,11 @@ router.post('/register', async (req, res) => {
         skills: user.skills || [],
         status: user.status,
         level: user.level,
-        creditScore: user.credit_score
+        creditScore: user.credit_score,
+        accountType: user.account_type
       },
-      nextStep: 'id_verification', // 引导下一步:实名认证
+      accountType: user.account_type,
+      nextStep: 'id_verification', // 个人与企业均先引导实名认证
       token
     });
   } catch (err) {
@@ -81,7 +108,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, phone, password_hash, real_name, skills, status, level, credit_score, id_card_verified, company_verified, service_enabled, role FROM users WHERE phone = $1',
+      'SELECT id, phone, password_hash, real_name, skills, status, level, credit_score, account_type, id_card_verified, company_verified, service_enabled, role FROM users WHERE phone = $1',
       [phone]
     );
 
@@ -101,17 +128,9 @@ router.post('/login', async (req, res) => {
 
     const token = generateToken(user);
 
-    logger.info(`用户登录: ${user.phone}`);
+    logger.info(`用户登录: ${user.phone}, 类型: ${user.account_type || 'individual'}`);
 
-    // 判断用户下一步需要做什么
-    let nextStep = null;
-    if (!user.id_card_verified) {
-      nextStep = 'id_verification';
-    } else if (!user.company_verified) {
-      nextStep = 'company_verification';
-    } else if (!user.service_enabled) {
-      nextStep = 'contract_signing'; // 引导电子合同签署
-    }
+    const nextStep = getNextStep(user);
 
     res.json({
       message: '登录成功',
@@ -121,8 +140,10 @@ router.post('/login', async (req, res) => {
         realName: user.real_name,
         level: user.level,
         creditScore: user.credit_score,
-        status: user.status
+        status: user.status,
+        accountType: user.account_type || 'individual'
       },
+      accountType: user.account_type || 'individual',
       nextStep,
       token
     });
@@ -173,6 +194,12 @@ router.post('/verify-id', authenticate, async (req, res) => {
     // TODO: 对接权威实名认证API(阿里云/腾讯云)
     // 目前模拟认证通过,实际生产必须对接官方API
 
+    const accountTypeResult = await pool.query(
+      'SELECT account_type FROM users WHERE id = $1',
+      [userId]
+    );
+    const accountType = accountTypeResult.rows[0]?.account_type || 'individual';
+
     await pool.query(
       `UPDATE users
        SET real_name = $1, id_card_hash = $2, id_card_masked = $3, id_card_verified = TRUE, id_card_verified_at = CURRENT_TIMESTAMP
@@ -180,11 +207,12 @@ router.post('/verify-id', authenticate, async (req, res) => {
       [realName, idCardHash, idCardMasked, userId]
     );
 
-    logger.info(`实名认证通过,用户 ${userId}`);
+    logger.info(`实名认证通过,用户 ${userId}, 类型: ${accountType}`);
 
     res.json({
       message: '实名认证通过',
-      nextStep: 'company_verification' // 引导下一步:企业认证
+      accountType,
+      nextStep: accountType === 'enterprise' ? 'company_verification' : null // 企业继续认证，个人完成基础认证
     });
   } catch (err) {
     logger.error('实名认证失败:', err);
@@ -192,7 +220,7 @@ router.post('/verify-id', authenticate, async (req, res) => {
   }
 });
 
-// 企业认证 - 第三步
+// 企业认证 - 第三步（仅企业账号需要）
 router.post('/verify-company', authenticate, async (req, res) => {
   const { companyName, registrationNo, companyType, businessLicense } = req.body;
   const userId = req.user.id;
@@ -202,6 +230,16 @@ router.post('/verify-company', authenticate, async (req, res) => {
   }
 
   try {
+    const accountTypeResult = await pool.query(
+      'SELECT account_type FROM users WHERE id = $1',
+      [userId]
+    );
+    const accountType = accountTypeResult.rows[0]?.account_type || 'individual';
+
+    if (accountType !== 'enterprise') {
+      return res.status(403).json({ error: '仅企业账号需要进行企业认证' });
+    }
+
     // companyType: 'new_register' | 'existing_upload'
 
     if (companyType === 'new_register') {
@@ -260,6 +298,16 @@ router.post('/sign-contract', authenticate, async (req, res) => {
   }
 
   try {
+    const accountTypeResult = await pool.query(
+      'SELECT account_type FROM users WHERE id = $1',
+      [userId]
+    );
+    const accountType = accountTypeResult.rows[0]?.account_type || 'individual';
+
+    if (accountType !== 'enterprise') {
+      return res.status(403).json({ error: '个人账号无需签署企业网络服务协议' });
+    }
+
     // 保存合同签署记录
     await pool.query(
       `INSERT INTO contracts (user_id, contract_version, signed_at, ip_address)
@@ -317,7 +365,7 @@ router.get('/status', authenticate, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT id_card_verified, company_verified, service_enabled,
+      `SELECT account_type, id_card_verified, company_verified, service_enabled,
               company_name, company_type, real_name
        FROM users WHERE id = $1`,
       [userId]
@@ -328,18 +376,10 @@ router.get('/status', authenticate, async (req, res) => {
     }
 
     const user = result.rows[0];
-
-    // 判断下一步
-    let nextStep = null;
-    if (!user.id_card_verified) {
-      nextStep = 'id_verification';
-    } else if (!user.company_verified) {
-      nextStep = 'company_verification';
-    } else if (!user.service_enabled) {
-      nextStep = 'contract_signing'; // 引导电子合同签署
-    }
+    const nextStep = getNextStep(user);
 
     res.json({
+      accountType: user.account_type || 'individual',
       idCardVerified: user.id_card_verified,
       companyVerified: user.company_verified,
       serviceEnabled: user.service_enabled,

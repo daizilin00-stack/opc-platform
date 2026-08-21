@@ -28,6 +28,7 @@ export default function LoginPage() {
           skills: user.skills || [],
           creditScore: user.creditScore || 100,
           level: user.level || 1,
+          accountType: user.accountType || 'individual',
           token: res.token,
         });
         router.push('/workspace');
@@ -48,7 +49,7 @@ export default function LoginPage() {
           {/* 欢迎文案 */}
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-slate-900 mb-2">欢迎回到 AgentWork</h1>
-            <p className="text-slate-600">登录您的企业账户，管理 AI 数字员工</p>
+            <p className="text-slate-600">登录您的账户，管理 AI 数字员工</p>
           </div>
 
           {error && (
@@ -102,8 +103,8 @@ export default function LoginPage() {
 
             <div className="mt-6 pt-6 border-t border-slate-100 text-center">
               <p className="text-sm text-slate-600">
-                还没有企业账户？{' '}
-                <Link href="/register" className="text-brand-600 hover:text-brand-700 font-medium">免费注册重庆公司</Link>
+                还没有账户？{' '}
+                <Link href="/register" className="text-brand-600 hover:text-brand-700 font-medium">免费注册</Link>
               </p>
             </div>
           </div>
@@ -111,7 +112,9 @@ export default function LoginPage() {
           {/* 入驻流程提示 */}
           <div className="mt-6 bg-accent-50 border border-accent-200 rounded-xl p-4">
             <p className="text-sm text-slate-700">
-              <strong className="text-accent-700">新用户入驻流程：</strong> 注册 → 实名认证 → 注册重庆公司 → 签署电子合同 → 开通 AI 员工服务
+              <strong className="text-accent-700">新用户入驻流程：</strong>
+              个人：注册 → 实名认证 → 使用基础 AI 服务；
+              企业：注册 → 实名认证 → 营业执照 → 签署电子合同 → 开通全部服务
             </p>
           </div>
         </div>
