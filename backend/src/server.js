@@ -8,6 +8,7 @@ require('dotenv').config();
 const migrate = require('./db/migrate');
 const migrateDeploy = require('./db/migrate-deploy');
 const logger = require('./utils/logger');
+const pool = require('./db/pool');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const authRoutes = require('./routes/auth');
