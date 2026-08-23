@@ -89,7 +89,7 @@ export default function LoginPage() {
                   <input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
                   <span className="text-slate-600">记住我</span>
                 </label>
-                <Link href="#" className="text-brand-600 hover:text-brand-700 font-medium">忘记密码？</Link>
+                <Link href="/forgot-password" className="text-brand-600 hover:text-brand-700 font-medium">忘记密码？</Link>
               </div>
 
               <button

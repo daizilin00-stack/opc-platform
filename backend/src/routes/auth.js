@@ -458,4 +458,102 @@ router.post('/change-password', authenticate, async (req, res) => {
   }
 });
 
+// 忘记密码：提交手机号，生成重置 token（短信服务未接入时，token 不自动发送，需客服/管理员人工处理）
+router.post('/forgot-password', async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone) {
+    return res.status(400).json({ error: '手机号不能为空' });
+  }
+
+  try {
+    const userResult = await pool.query(
+      'SELECT id, phone, real_name, id_card_verified FROM users WHERE phone = $1',
+      [phone]
+    );
+
+    if (userResult.rows.length === 0) {
+      // 为安全起见，统一返回模糊提示，避免枚举手机号
+      return res.status(200).json({
+        message: '如果该手机号已注册，重置申请已提交。客服处理后会联系您。',
+        phoneExists: false
+      });
+    }
+
+    const user = userResult.rows[0];
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时有效
+
+    await pool.query(
+      `INSERT INTO password_reset_requests (phone, user_id, reset_token, token_expires_at, status, ip_address)
+       VALUES ($1, $2, $3, $4, 'pending', $5)`,
+      [phone, user.id, resetToken, tokenExpiresAt, req.ip]
+    );
+
+    logger.info(`密码重置申请: ${phone}, userId=${user.id}`);
+
+    // TODO: 接入短信服务后，将 resetToken 通过短信发送给用户
+    res.json({
+      message: '密码重置申请已提交。当前短信服务未接入，请拨打客服电话 18223589315 或联系客服邮箱 daizilin00@gmail.com 完成身份验证并重置密码。',
+      phoneExists: true,
+      idCardVerified: user.id_card_verified,
+      contactPhone: '18223589315',
+      contactEmail: 'daizilin00@gmail.com'
+    });
+  } catch (err) {
+    logger.error('提交密码重置申请失败:', err);
+    res.status(500).json({ error: '提交失败，请稍后再试' });
+  }
+});
+
+// 重置密码（需有效 resetToken，用于后续短信验证后自助重置）
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: '重置令牌和新密码不能为空' });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: '新密码长度不能少于 8 位' });
+  }
+
+  try {
+    const requestResult = await pool.query(
+      `SELECT id, user_id, status, token_expires_at FROM password_reset_requests
+       WHERE reset_token = $1 AND token_expires_at > CURRENT_TIMESTAMP`,
+      [token]
+    );
+
+    if (requestResult.rows.length === 0) {
+      return res.status(400).json({ error: '重置令牌无效或已过期' });
+    }
+
+    const request = requestResult.rows[0];
+
+    if (request.status !== 'pending' && request.status !== 'verified') {
+      return res.status(400).json({ error: '重置令牌已被使用或已取消' });
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [newPasswordHash, request.user_id]
+    );
+
+    await pool.query(
+      `UPDATE password_reset_requests
+       SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [request.id]
+    );
+
+    logger.info(`密码重置成功: userId=${request.user_id}`);
+    res.json({ message: '密码重置成功，请使用新密码登录' });
+  } catch (err) {
+    logger.error('重置密码失败:', err);
+    res.status(500).json({ error: '重置密码失败，请稍后再试' });
+  }
+});
+
 module.exports = router;

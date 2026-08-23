@@ -384,6 +384,25 @@ CREATE INDEX IF NOT EXISTS idx_task_milestones_task ON task_milestones(task_id);
 CREATE INDEX IF NOT EXISTS idx_recharge_orders_user ON recharge_orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_recharge_orders_status ON recharge_orders(status);
 
+-- 密码重置申请表（短信服务未接入前，由客服/管理员处理）
+CREATE TABLE IF NOT EXISTS password_reset_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone VARCHAR(20) NOT NULL,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    reset_token VARCHAR(255) UNIQUE,
+    token_expires_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, verified, completed, cancelled
+    admin_note TEXT,
+    processed_by UUID REFERENCES users(id),
+    processed_at TIMESTAMP,
+    ip_address VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_phone ON password_reset_requests(phone);
+CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_requests(reset_token);
+
 -- 新增索引（已有表的索引）
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_publisher ON tasks(publisher_id);

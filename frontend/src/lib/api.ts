@@ -45,6 +45,18 @@ export const auth = {
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
 
+  forgotPassword: (phone: string) =>
+    request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    }),
+
   verifyId: (idCard: string, realName: string) =>
     request('/auth/verify-id', {
       method: 'POST',
