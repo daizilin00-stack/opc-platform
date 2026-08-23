@@ -51,10 +51,10 @@ export const auth = {
       body: JSON.stringify({ phone }),
     }),
 
-  resetPassword: (token: string, newPassword: string) =>
+  resetPassword: (phone: string, code: string, newPassword: string) =>
     request('/auth/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ token, newPassword }),
+      body: JSON.stringify({ phone, code, newPassword }),
     }),
 
   verifyId: (idCard: string, realName: string) =>
