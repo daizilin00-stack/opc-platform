@@ -44,12 +44,21 @@ for i in {1..30}; do
     fi
 done
 
-# 5. 配置 Nginx
-if [ ! -L /etc/nginx/sites-enabled/opc.conf ]; then
-    cp "$DEPLOY_DIR/nginx/opc.conf" /etc/nginx/sites-available/opc.conf
-    # 替换域名占位符（实际用 sed 根据 .env.prod 替换）
-    sed -i "s/csdp-agentwork.com/${DOMAIN}/g" /etc/nginx/sites-available/opc.conf
-    ln -sf /etc/nginx/sites-available/opc.conf /etc/nginx/sites-enabled/opc.conf
+# 5. 配置 Nginx（兼容 conf.d 与 sites-available 两种目录结构）
+NGINX_CONF_DIR="/etc/nginx/conf.d"
+if [ -d "/etc/nginx/sites-available" ] && [ -d "/etc/nginx/sites-enabled" ]; then
+    NGINX_CONF_DIR="/etc/nginx/sites-available"
+    if [ ! -L /etc/nginx/sites-enabled/opc.conf ]; then
+        cp "$DEPLOY_DIR/nginx/opc.conf" /etc/nginx/sites-available/opc.conf
+        sed -i "s/csdp-agentwork.com/${DOMAIN}/g" /etc/nginx/sites-available/opc.conf
+        ln -sf /etc/nginx/sites-available/opc.conf /etc/nginx/sites-enabled/opc.conf
+    else
+        cp "$DEPLOY_DIR/nginx/opc.conf" /etc/nginx/sites-available/opc.conf
+        sed -i "s/csdp-agentwork.com/${DOMAIN}/g" /etc/nginx/sites-available/opc.conf
+    fi
+else
+    cp "$DEPLOY_DIR/nginx/opc.conf" /etc/nginx/conf.d/opc.conf
+    sed -i "s/csdp-agentwork.com/${DOMAIN}/g" /etc/nginx/conf.d/opc.conf
 fi
 
 # 6. 配置 SSL（如果还没有证书）
