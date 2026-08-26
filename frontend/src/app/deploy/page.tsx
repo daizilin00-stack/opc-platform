@@ -4,12 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { DEPLOY_PACKAGES, DEPLOY_ADDONS } from '@/lib/deploy-pricing';
+import { MODEL_PRICING } from '@/lib/pricing';
 
 export default function DeployPage() {
   const [activeTab, setActiveTab] = useState<'packages' | 'comparison' | 'calculator' | 'agents' | 'create'>('packages');
-  const [calcAgents, setCalcAgents] = useState(5);
-  const [calcCalls, setCalcCalls] = useState(8000);
-  const [calcTeam, setCalcTeam] = useState(3);
+  const [selectedCase, setSelectedCase] = useState<number | null>(null);
+  const setChatOpen = useStore((state) => state.setChatOpen);
   const isLoggedIn = useStore((state) => state.isLoggedIn);
 
   const agents = [
@@ -47,57 +47,46 @@ export default function DeployPage() {
     error: '异常'
   };
 
-  // 计算推荐套餐
-  const calculateRecommendation = () => {
-    if (calcAgents <= 1 && calcCalls <= 1000 && calcTeam <= 1) return DEPLOY_PACKAGES[0];
-    if (calcAgents <= 5 && calcCalls <= 10000 && calcTeam <= 3) return DEPLOY_PACKAGES[1];
-    if (calcAgents <= 20 && calcCalls <= 100000 && calcTeam <= 10) return DEPLOY_PACKAGES[2];
-    return DEPLOY_PACKAGES[3];
-  };
-
-  const recommended = calculateRecommendation();
-  const recommendedExtras = recommended.id === 'deploy-experience' 
-    ? Math.max(0, calcAgents - 1) * 50 + Math.max(0, calcCalls - 1000) / 1000 * 10 + Math.max(0, calcTeam - 1) * 30
-    : recommended.id === 'deploy-startup'
-    ? Math.max(0, calcAgents - 5) * 50 + Math.max(0, calcCalls - 10000) / 1000 * 10 + Math.max(0, calcTeam - 3) * 30
-    : recommended.id === 'deploy-team'
-    ? Math.max(0, calcAgents - 20) * 50 + Math.max(0, calcCalls - 100000) / 1000 * 10 + Math.max(0, calcTeam - 10) * 30
-    : 0;
-
-  const totalPrice = (recommended.price || 0) + recommendedExtras;
-
   const caseStudies = [
     {
       title: '个人开发者博客',
       package: '体验版',
       icon: '👨‍💻',
       description: '1个Agent处理博客评论回复和读者咨询，每月500次调用足够',
-      result: '月成本 ¥99，替代了原本外包客服 ¥800/月',
+      result: '月成本 ¥99（套餐）+ Token 按量约 ¥20',
+      detail: '该博客使用 1 个客服 Agent 自动回复评论和读者邮件。月调用约 500 次，平均单次 1,500 tokens，Token 费用约 ¥20。总月成本约 ¥119，替代原本外包客服 ¥800/月。',
     },
     {
       title: '跨境电商3店铺',
       package: '创业版',
       icon: '🛒',
       description: '5个Agent分别服务3个店铺+1个库存助手+1个数据分析',
-      result: '月成本 ¥299，人力成本降低60%',
+      result: '月成本 ¥299（套餐）+ Token 按量约 ¥400',
+      detail: '3 个店铺客服 Agent + 1 个库存查询 Agent + 1 个数据周报 Agent。月调用约 8,000 次，混合使用 GPT-5.4 Mini 与 DeepSeek，Token 费用约 ¥400。总月成本约 ¥699，替代 2 名外包运营。',
     },
     {
       title: '20人AI客服中心',
       package: '团队版',
       icon: '🏢',
       description: '20个Agent处理不同业务线，10万调用支持日均3000+对话',
-      result: '月成本 ¥999，替代了8人客服团队',
+      result: '月成本 ¥999（套餐）+ Token 按量约 ¥3,500',
+      detail: '20 个 Agent 覆盖售前、售后、技术支持、投诉处理等业务线。月调用约 10 万次，平均单次 2,500 tokens，Token 费用约 ¥3,500。总月成本约 ¥4,500，替代 8 人客服团队（约 ¥32,000/月）。',
     },
     {
       title: '银行智能风控',
       package: '企业版',
       icon: '🏦',
       description: '私有化部署，专属模型微调，7×24风控监控',
-      result: '定制方案，风控效率提升300%',
+      result: '定制方案，私有化部署，数据不出域',
+      detail: '企业版提供私有化部署、专属 GPU 资源、模型微调与 7×24 运维支持。费用按项目定制，需联系销售评估。',
     },
   ];
 
   const faqs = [
+    {
+      q: 'Agent 如何访问员工电脑中的工作文件？',
+      a: 'Open Cloud 部署的 Agent 运行在平台云端，默认无法直接读取员工本地电脑文件。员工可通过「工作台」上传文件到平台云盘，授权 Agent 在指定知识库或会话中读取；企业版支持私有化网关，可在受控网络环境下实现本地文件同步。',
+    },
     {
       q: '部署平台与硅基员工有什么区别？',
       a: '部署平台面向开发者，提供自主构建和部署AI Agent的能力，支持自定义代码、工作流编排和API集成；硅基员工面向非技术用户，提供即开即用的AI员工服务，无需开发能力。',
@@ -298,14 +287,22 @@ export default function DeployPage() {
                     </li>
                   </ul>
 
-                  <Link href={isLoggedIn ? `/order?service=deploy&plan=${plan.id}` : '/register'} 
-                    className={`block w-full text-center py-3 rounded-lg font-medium transition-colors ${
-                      plan.isPopular ? 'bg-brand-600 text-white hover:bg-brand-700' : 
-                      plan.isEnterprise ? 'bg-slate-800 text-white hover:bg-slate-900' :
-                      'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}>
-                    {plan.isEnterprise ? '联系销售' : isLoggedIn ? '立即开通' : '登录后开通'}
-                  </Link>
+                  {plan.isEnterprise ? (
+                    <button
+                      onClick={() => setChatOpen(true)}
+                      className="block w-full text-center py-3 rounded-lg font-medium transition-colors bg-slate-800 text-white hover:bg-slate-900"
+                    >
+                      咨询销售
+                    </button>
+                  ) : (
+                    <Link href={isLoggedIn ? `/order?service=deploy&plan=${plan.id}` : '/register'} 
+                      className={`block w-full text-center py-3 rounded-lg font-medium transition-colors ${
+                        plan.isPopular ? 'bg-brand-600 text-white hover:bg-brand-700' : 
+                        'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}>
+                      {isLoggedIn ? '立即开通' : '登录后开通'}
+                    </Link>
+                  )}
                 </div>
               ))}
             </div>
@@ -388,115 +385,7 @@ export default function DeployPage() {
 
         {/* Calculator Tab */}
         {activeTab === 'calculator' && (
-          <div className="max-w-2xl mx-auto">
-            <div className="card bg-white mb-6">
-              <h3 className="text-lg font-bold text-slate-900 mb-6">成本计算器</h3>
-              <p className="text-sm text-slate-500 mb-6">输入您的业务需求，自动推荐最省钱的套餐</p>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    需要部署的 Agent 数量: <span className="text-brand-600 font-bold">{calcAgents}个</span>
-                  </label>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="50" 
-                    value={calcAgents}
-                    onChange={(e) => setCalcAgents(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
-                  />
-                  <div className="flex justify-between text-xs text-slate-400 mt-1">
-                    <span>1个</span>
-                    <span>50个</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    预计月调用次数: <span className="text-brand-600 font-bold">{calcCalls.toLocaleString()}次</span>
-                  </label>
-                  <input 
-                    type="range" 
-                    min="500" 
-                    max="200000" 
-                    step="500"
-                    value={calcCalls}
-                    onChange={(e) => setCalcCalls(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
-                  />
-                  <div className="flex justify-between text-xs text-slate-400 mt-1">
-                    <span>500次</span>
-                    <span>20万次</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    团队人数: <span className="text-brand-600 font-bold">{calcTeam}人</span>
-                  </label>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="30" 
-                    value={calcTeam}
-                    onChange={(e) => setCalcTeam(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
-                  />
-                  <div className="flex justify-between text-xs text-slate-400 mt-1">
-                    <span>1人</span>
-                    <span>30人</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 推荐结果 */}
-            <div className="bg-gradient-to-r from-brand-50 to-accent-50 rounded-xl border border-brand-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="text-sm text-slate-600">推荐套餐</div>
-                  <div className="text-2xl font-bold text-slate-900">{recommended.name}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-slate-600">预估月费</div>
-                  <div className="text-3xl font-bold text-brand-600">
-                    {recommended.isEnterprise ? '定制' : `¥${totalPrice.toLocaleString()}`}
-                  </div>
-                </div>
-              </div>
-              
-              {!recommended.isEnterprise && recommendedExtras > 0 && (
-                <div className="text-sm text-slate-600 mb-4">
-                  含超出套餐附加费：¥{recommendedExtras.toLocaleString()}
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                <div className="bg-white rounded-lg p-3">
-                  <div className="text-slate-500">Agent 数量</div>
-                  <div className="font-bold">{recommended.agentCount || '无限'}</div>
-                </div>
-                <div className="bg-white rounded-lg p-3">
-                  <div className="text-slate-500">月调用次数</div>
-                  <div className="font-bold">{(recommended.monthlyCalls || 0).toLocaleString()}</div>
-                </div>
-                <div className="bg-white rounded-lg p-3">
-                  <div className="text-slate-500">团队人数</div>
-                  <div className="font-bold">{recommended.teamSize || '无限'}</div>
-                </div>
-                <div className="bg-white rounded-lg p-3">
-                  <div className="text-slate-500">SLA</div>
-                  <div className="font-bold">{recommended.sla || '无'}</div>
-                </div>
-              </div>
-
-              <Link href={isLoggedIn ? `/order?service=deploy&plan=${recommended.id}` : '/register'} 
-                className="block w-full text-center py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors">
-                {recommended.isEnterprise ? '联系销售获取方案' : '选择此套餐'}
-              </Link>
-            </div>
-          </div>
+          <CalculatorTab isLoggedIn={isLoggedIn} />
         )}
 
         {/* Agents Tab */}
@@ -599,7 +488,11 @@ export default function DeployPage() {
           <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">客户案例</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {caseStudies.map((study, idx) => (
-              <div key={idx} className="card bg-white">
+              <button
+                key={idx}
+                onClick={() => setSelectedCase(idx)}
+                className="card bg-white text-left hover:shadow-lg transition-all"
+              >
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-3xl">{study.icon}</span>
                   <div>
@@ -611,10 +504,49 @@ export default function DeployPage() {
                 <div className="bg-accent-50 rounded-lg p-3 text-sm text-accent-700">
                   <strong>效果：</strong>{study.result}
                 </div>
-              </div>
+                <div className="mt-3 text-xs text-brand-600 font-medium flex items-center gap-1">
+                  查看详情 <span>→</span>
+                </div>
+              </button>
             ))}
           </div>
         </div>
+
+        {/* Case Study Modal */}
+        {selectedCase !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setSelectedCase(null)}>
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-4xl">{caseStudies[selectedCase].icon}</span>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">{caseStudies[selectedCase].title}</h3>
+                  <span className="text-xs px-2 py-1 rounded-full bg-brand-50 text-brand-700">{caseStudies[selectedCase].package}</span>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-4">{caseStudies[selectedCase].description}</p>
+              <div className="bg-accent-50 rounded-lg p-4 text-sm text-accent-700 mb-4">
+                <strong>效果：</strong>{caseStudies[selectedCase].result}
+              </div>
+              <div className="text-sm text-slate-600 leading-relaxed mb-6">
+                {caseStudies[selectedCase].detail}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setChatOpen(true)}
+                  className="flex-1 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+                >
+                  咨询同款方案
+                </button>
+                <button
+                  onClick={() => setSelectedCase(null)}
+                  className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors"
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* FAQ */}
         <div className="mt-16">
@@ -638,13 +570,218 @@ export default function DeployPage() {
               <Link href="/register" className="bg-white text-brand-600 px-8 py-3 rounded-lg font-semibold hover:bg-white/90 transition-colors">
                 免费开始
               </Link>
-              <Link href="/support" className="bg-white/10 text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/20 transition-colors">
+              <button
+                onClick={() => setChatOpen(true)}
+                className="bg-white/10 text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/20 transition-colors"
+              >
                 联系销售
-              </Link>
+              </button>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// 客户成本测算器：为客户测算真实使用成本（套餐费 + 超额调用费 + Token 按量费）
+function CalculatorTab({ isLoggedIn }: { isLoggedIn: boolean }) {
+  const setChatOpen = useStore((state) => state.setChatOpen);
+  const [agents, setAgents] = useState(5);
+  const [calls, setCalls] = useState(10000);
+  const [team, setTeam] = useState(3);
+  const [tokensPerCall, setTokensPerCall] = useState(2000); // 单次调用平均总 token
+  const [model, setModel] = useState<'deepseek-v4-flash' | 'deepseek-v4-pro' | 'gpt-5.4-mini' | 'gpt-5.4' | 'claude-sonnet-5'>('gpt-5.4-mini');
+
+  // 推荐套餐
+  const recommended = (() => {
+    if (agents <= 1 && calls <= 1000 && team <= 1) return DEPLOY_PACKAGES[0];
+    if (agents <= 5 && calls <= 10000 && team <= 3) return DEPLOY_PACKAGES[1];
+    if (agents <= 20 && calls <= 100000 && team <= 10) return DEPLOY_PACKAGES[2];
+    return DEPLOY_PACKAGES[3];
+  })();
+
+  const plan = recommended;
+
+  // 超额资源费
+  const extraAgentCount = Math.max(0, agents - (plan.agentCount ?? Infinity));
+  const extraCallCount = Math.max(0, calls - (plan.monthlyCalls ?? Infinity));
+  const extraTeamCount = Math.max(0, team - (plan.teamSize ?? Infinity));
+
+  const extraAgentCost = extraAgentCount * 50;
+  const extraCallCost = (extraCallCount / 1000) * 10;
+  const extraTeamCost = extraTeamCount * 30;
+  const extraResourceCost = extraAgentCost + extraCallCost + extraTeamCost;
+
+  // Token 按量费：按单次调用平均 token × 调用次数 × 模型单价
+  const pricing = MODEL_PRICING[model] || MODEL_PRICING['gpt-5.4-mini'];
+  const avgInputTokens = Math.round(tokensPerCall * 0.7);
+  const avgOutputTokens = Math.round(tokensPerCall * 0.3);
+  const tokenCost =
+    (calls * avgInputTokens / 1000) * (pricing.input || 0) +
+    (calls * avgOutputTokens / 1000) * (pricing.output || 0);
+
+  const subscriptionCost = plan.price ?? 0;
+  const totalCost = subscriptionCost + extraResourceCost + tokenCost;
+
+  const formatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 });
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="card bg-white mb-6">
+        <h3 className="text-lg font-bold text-slate-900 mb-2">客户成本测算器</h3>
+        <p className="text-sm text-slate-500 mb-6">
+          输入您的业务规模，我们将为您测算「套餐订阅费 + 超额资源费 + 模型 Token 按量费」的真实月成本。
+        </p>
+
+        <div className="space-y-6">
+          <Slider label="Agent 数量" value={agents} min={1} max={50} onChange={setAgents} unit="个" />
+          <Slider label="预计月调用次数" value={calls} min={500} max={200000} step={500} onChange={setCalls} unit="次" />
+          <Slider label="团队人数" value={team} min={1} max={30} onChange={setTeam} unit="人" />
+          <Slider
+            label="单次调用平均 Token 数"
+            value={tokensPerCall}
+            min={200}
+            max={16000}
+            step={100}
+            onChange={setTokensPerCall}
+            unit=" tokens"
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">参考模型</label>
+            <select
+              value={model}
+              onChange={(e) => setModel(e.target.value as any)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="deepseek-v4-flash">DeepSeek V4 Flash（最省）</option>
+              <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
+              <option value="gpt-5.4-mini">GPT-5.4 Mini（推荐）</option>
+              <option value="gpt-5.4">GPT-5.4</option>
+              <option value="claude-sonnet-5">Claude Sonnet 5</option>
+            </select>
+            <p className="text-xs text-slate-400 mt-1">
+              不同模型单价不同，实际使用中会按各 Agent 配置的模型混合计费，此处按单一模型估算。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 推荐结果 */}
+      <div className="bg-gradient-to-r from-brand-50 to-accent-50 rounded-xl border border-brand-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-sm text-slate-600">推荐套餐</div>
+            <div className="text-2xl font-bold text-slate-900">{plan.name}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm text-slate-600">预估月费</div>
+            <div className="text-3xl font-bold text-brand-600">¥{formatter.format(totalCost)}</div>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-sm text-slate-600 mb-4">
+          <CostRow label="套餐订阅费" value={subscriptionCost} />
+          <CostRow label="超额资源费" value={extraResourceCost} detail={`Agent +${extraAgentCount}，调用 +${extraCallCount.toLocaleString()}，成员 +${extraTeamCount}`} />
+          <CostRow
+            label="模型 Token 费用"
+            value={tokenCost}
+            detail={`${calls.toLocaleString()} 次 × ${tokensPerCall.toLocaleString()} tokens × ${model}`}
+          />
+        </div>
+
+        <div className="bg-white rounded-lg p-3 text-xs text-slate-500 mb-4">
+          <strong className="text-slate-700">测算说明：</strong>
+          实际费用以平台账单为准。Token 费用按实际消耗扣除，套餐内不赠送 Token 额度；如您购买「Token 充值包」或「AI 数字员工套餐」，可抵扣 Token 费用。
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-slate-500">包含 Agent</div>
+            <div className="font-bold">{plan.agentCount ?? '无限'} 个</div>
+          </div>
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-slate-500">包含调用</div>
+            <div className="font-bold">{(plan.monthlyCalls ?? 0).toLocaleString()} 次/月</div>
+          </div>
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-slate-500">包含成员</div>
+            <div className="font-bold">{plan.teamSize ?? '无限'} 人</div>
+          </div>
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-slate-500">SLA</div>
+            <div className="font-bold">{plan.sla || '无'}</div>
+          </div>
+        </div>
+
+        {plan.isEnterprise ? (
+          <button
+            onClick={() => setChatOpen(true)}
+            className="block w-full text-center py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+          >
+            联系销售获取方案
+          </button>
+        ) : (
+          <Link
+            href={isLoggedIn ? `/order?service=deploy&plan=${plan.id}` : '/register'}
+            className="block w-full text-center py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+          >
+            选择此套餐
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Slider({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+  unit,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (v: number) => void;
+  unit: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">
+        {label}: <span className="text-brand-600 font-bold">{value.toLocaleString()}{unit}</span>
+      </label>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
+      />
+      <div className="flex justify-between text-xs text-slate-400 mt-1">
+        <span>{min.toLocaleString()}{unit}</span>
+        <span>{max.toLocaleString()}{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+function CostRow({ label, value, detail }: { label: string; value: number; detail?: string }) {
+  return (
+    <div className="flex justify-between items-center border-b border-brand-100 last:border-0 pb-2 last:pb-0">
+      <div>
+        <span className="font-medium text-slate-700">{label}</span>
+        {detail && <span className="block text-xs text-slate-400">{detail}</span>}
+      </div>
+      <span className="font-bold text-slate-900">¥{new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(value)}</span>
     </div>
   );
 }

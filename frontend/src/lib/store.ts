@@ -30,11 +30,13 @@ interface StoreState {
   tasks: Task[];
   currentAgent: string | null;
   isLoggedIn: boolean;
+  chatOpen: boolean;
   setUser: (user: User | null) => void;
   setTasks: (tasks: Task[]) => void;
   setCurrentAgent: (agent: string | null) => void;
   logout: () => void;
   login: (user: User) => void;
+  setChatOpen: (open: boolean) => void;
 }
 
 // 从 localStorage 恢复用户数据
@@ -65,13 +67,15 @@ export const useStore = create<StoreState>((set) => ({
   tasks: [],
   currentAgent: null,
   isLoggedIn: !!storedUser,
+  chatOpen: false,
   setUser: (user) => set({ user, isLoggedIn: !!user }),
   setTasks: (tasks) => set({ tasks }),
   setCurrentAgent: (agent) => set({ currentAgent: agent }),
+  setChatOpen: (open) => set({ chatOpen: open }),
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    set({ user: null, isLoggedIn: false, currentAgent: null });
+    set({ user: null, isLoggedIn: false, currentAgent: null, chatOpen: false });
   },
   login: (user) => {
     localStorage.setItem('token', user.token);

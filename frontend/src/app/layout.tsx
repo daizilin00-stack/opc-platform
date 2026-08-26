@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Header from "@/components/Header";
+import ChatWidget from "@/components/ChatWidget";
 
 export const metadata: Metadata = {
   title: "CSDP AgentWork | 中新数据港数字平台",
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <Header />
         {children}
+        <ChatWidget />
       </body>
     </html>
   );

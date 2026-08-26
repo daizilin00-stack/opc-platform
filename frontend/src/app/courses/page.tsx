@@ -8,6 +8,7 @@ import { trainingCourses } from './content';
 export default function CoursesPage() {
   const [filter, setFilter] = useState<'all' | 'free' | 'paid'>('all');
   const isLoggedIn = useStore((state) => state.isLoggedIn);
+  const setChatOpen = useStore((state) => state.setChatOpen);
 
   const filtered = trainingCourses.filter((c) => {
     if (filter === 'free') return c.isFree;
@@ -109,12 +110,15 @@ export default function CoursesPage() {
           <p className="text-slate-600 mb-4">
             如果你有跨境电商、AI、合规等领域的实战经验，欢迎申请入驻讲师，把你的知识变现。
           </p>
-          <Link
-            href={isLoggedIn ? '/workspace' : '/register'}
+          <button
+            onClick={() => setChatOpen(true)}
             className="inline-block px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
           >
             {isLoggedIn ? '联系平台运营' : '注册后申请'}
-          </Link>
+          </button>
+          <p className="text-xs text-slate-500 mt-3">
+            点击后将打开客服对话框，运营助理会在工作日 9:00-18:00 内回复您的讲师申请。
+          </p>
         </div>
       </div>
     </div>

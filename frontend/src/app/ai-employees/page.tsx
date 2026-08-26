@@ -56,7 +56,7 @@ export default function AIEmployeesPage() {
               <span className="text-2xl">🚀</span>
               <div>
                 <p className="font-semibold text-accent-700">开园特惠套餐</p>
-                <p className="text-sm text-accent-600">注册公司即可入驻，套餐内含数字员工 + Token 额度，一站式配齐</p>
+                <p className="text-sm text-accent-600">注册公司即可入驻，套餐内含数字员工 + Token 额度，一站式配齐。每个团队成员使用独立账号登录工作台。</p>
               </div>
             </div>
 
@@ -160,6 +160,14 @@ export default function AIEmployeesPage() {
         {activeTab === 'faq' && (
           <div className="space-y-6 max-w-3xl mx-auto">
             {[
+              {
+                q: '创业版的「3人团队」是指什么？员工如何工作？',
+                a: '指为您的企业创建 3 个独立的工作台账号，3 名员工各自用自己的账号登录 Open Cloud 平台。AI 数字员工运行在云端，员工通过浏览器/工作台向 Agent 分配任务、上传文件、查看结果。工作流无需重新调整，平台提供标准流程；如需对接企业现有系统，可联系技术方案官定制。',
+              },
+              {
+                q: 'AI 数字员工能读取员工电脑里的文件吗？',
+                a: '不能。为保护数据安全，云端 Agent 默认无法访问员工本地文件。员工需通过工作台把文件上传到平台云盘，授权 Agent 在指定知识库或会话中读取；企业版支持私有化网关，可在受控环境下同步本地文件。',
+              },
               {
                 q: 'AI 数字员工能做什么？',
                 a: 'AI 数字员工是基于大语言模型的智能代理，可以执行特定业务角色：CEO负责战略调度，销售负责客户开发，客服负责答疑，技术官负责方案设计，合规官负责法规跟踪，助理负责日常事务。它们 24/7 在线，不知疲倦。',

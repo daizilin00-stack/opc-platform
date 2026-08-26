@@ -59,33 +59,38 @@ export default function Home() {
               </div>
             </div>
             <div className="relative">
-              <div className="bg-gradient-to-br from-brand-50 to-accent-50 rounded-2xl p-8 border border-slate-100">
-                <div className="space-y-4">
-                  {[
-                    { role: "CEO", name: "团坐009", status: "在线", color: "bg-brand-600" },
-                    { role: "销售总监", name: "客户开发", status: "工作中", color: "bg-accent-500" },
-                    { role: "客服主管", name: "7×24 多语言应答", status: "工作中", color: "bg-accent-500" },
-                    { role: "技术方案官", name: "待命", status: "待命", color: "bg-slate-400" },
-                  ].map((agent, i) => (
-                    <div key={i} className="flex items-center gap-4 bg-white rounded-lg p-4 shadow-sm">
-                      <div className={`w-10 h-10 ${agent.color} rounded-lg flex items-center justify-center text-white text-sm font-bold`}>
-                        {agent.role[0]}
+              <Link href="/ai-employees" className="block no-underline">
+                <div className="bg-gradient-to-br from-brand-50 to-accent-50 rounded-2xl p-8 border border-slate-100 hover:shadow-lg transition-all">
+                  <div className="space-y-4">
+                    {[
+                      { role: "CEO", name: "团坐009", status: "在线", color: "bg-brand-600", query: "ceo" },
+                      { role: "销售总监", name: "客户开发", status: "工作中", color: "bg-accent-500", query: "sales" },
+                      { role: "客服主管", name: "7×24 多语言应答", status: "工作中", color: "bg-accent-500", query: "support" },
+                      { role: "技术方案官", name: "待命", status: "待命", color: "bg-slate-400", query: "solution" },
+                    ].map((agent, i) => (
+                      <div key={i} className="flex items-center gap-4 bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                        <div className={`w-10 h-10 ${agent.color} rounded-lg flex items-center justify-center text-white text-sm font-bold`}>
+                          {agent.role[0]}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-slate-900">{agent.role}</div>
+                          <div className="text-sm text-slate-500">{agent.name}</div>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          agent.status === "在线" ? "bg-brand-50 text-brand-700" :
+                          agent.status === "工作中" ? "bg-accent-50 text-accent-700" :
+                          "bg-slate-100 text-slate-600"
+                        }`}>
+                          {agent.status}
+                        </span>
                       </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-slate-900">{agent.role}</div>
-                        <div className="text-sm text-slate-500">{agent.name}</div>
-                      </div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        agent.status === "在线" ? "bg-brand-50 text-brand-700" :
-                        agent.status === "工作中" ? "bg-accent-50 text-accent-700" :
-                        "bg-slate-100 text-slate-600"
-                      }`}>
-                        {agent.status}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  <div className="mt-4 text-center text-sm text-brand-600 font-medium">
+                    点击了解全部 6 个 AI 数字员工 →
+                  </div>
                 </div>
-              </div>
+              </Link>
             </div>
           </div>
         </div>

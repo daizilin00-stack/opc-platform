@@ -18,7 +18,7 @@ export default function TokenCenterPage() {
     ...m,
     input: MODEL_PRICING[m.key as keyof typeof MODEL_PRICING]?.input ?? 0,
     output: MODEL_PRICING[m.key as keyof typeof MODEL_PRICING]?.output ?? 0,
-    perCall: MODEL_PRICING[m.key as keyof typeof MODEL_PRICING]?.perCall,
+    perCall: (MODEL_PRICING as Record<string, any>)[m.key as keyof typeof MODEL_PRICING]?.perCall,
     markup: MODEL_PRICING[m.key as keyof typeof MODEL_PRICING]?.markup ?? 0,
   }));
 
