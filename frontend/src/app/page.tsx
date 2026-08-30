@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PROMOTION_PACKAGES } from '@/lib/pricing';
+import PricingCTA from "@/components/PricingCTA";
 
 export default function Home() {
   return (
@@ -193,9 +194,12 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <Link href={plan.id === 'promo-experience' ? '/register' : plan.id === 'promo-startup' ? '/register' : '/support'} className={`block w-full text-center py-3 rounded-lg font-medium transition-colors ${plan.isPopular ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
-                  {plan.id === 'promo-experience' ? '免费体验' : plan.id === 'promo-startup' ? '立即入驻' : '预约咨询'}
-                </Link>
+                <PricingCTA
+                  productId={plan.id}
+                  variant={plan.isPopular ? 'primary' : 'secondary'}
+                >
+                  {plan.id === 'promo-experience' ? '立即体验' : plan.id === 'promo-startup' ? '立即入驻' : '预约咨询'}
+                </PricingCTA>
               </div>
             ))}
           </div>

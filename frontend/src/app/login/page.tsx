@@ -1,17 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useStore } from '@/lib/store';
 
-export default function LoginPage() {
+function LoginContent() {
   const [form, setForm] = useState({ phone: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [redirect, setRedirect] = useState('/workspace');
   const router = useRouter();
   const login = useStore((state) => state.login);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const r = params.get('redirect');
+      if (r && r.startsWith('/')) {
+        setRedirect(r);
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +42,7 @@ export default function LoginPage() {
           accountType: user.accountType || 'individual',
           token: res.token,
         });
-        router.push('/workspace');
+        router.push(redirect);
       } else {
         setError(res?.error || '登录失败');
       }
@@ -104,7 +115,7 @@ export default function LoginPage() {
             <div className="mt-6 pt-6 border-t border-slate-100 text-center">
               <p className="text-sm text-slate-600">
                 还没有账户？{' '}
-                <Link href="/register" className="text-brand-600 hover:text-brand-700 font-medium">免费注册</Link>
+                <Link href={`/register${redirect && redirect !== '/workspace' ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-brand-600 hover:text-brand-700 font-medium">免费注册</Link>
               </p>
             </div>
           </div>
@@ -137,5 +148,13 @@ export default function LoginPage() {
         </div>
       </footer>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><span className="text-slate-400">加载中...</span></div>}>
+      <LoginContent />
+    </Suspense>
   );
 }

@@ -3,15 +3,22 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useStore } from '@/lib/store';
 import { PROMOTION_PACKAGES, TOKEN_PACKAGES, LINE_BUNDLE_PROMOS, MODEL_PRICING_DISPLAY } from '@/lib/pricing';
 
 export default function PricingPage() {
   const router = useRouter();
+  const { isLoggedIn } = useStore();
   const [activeTab, setActiveTab] = useState<'promotion' | 'token' | 'model' | 'line'>('promotion');
   const [showAllModels, setShowAllModels] = useState(false);
 
   const handleBuy = (productId: string) => {
-    router.push(`/recharge?productId=${productId}`);
+    const target = `/recharge?productId=${encodeURIComponent(productId)}`;
+    if (isLoggedIn) {
+      router.push(target);
+    } else {
+      router.push(`/login?redirect=${encodeURIComponent(target)}`);
+    }
   };
 
   return (

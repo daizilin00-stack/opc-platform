@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface User {
   id: string;
@@ -31,55 +32,70 @@ interface StoreState {
   currentAgent: string | null;
   isLoggedIn: boolean;
   chatOpen: boolean;
+  hydrated: boolean;
   setUser: (user: User | null) => void;
   setTasks: (tasks: Task[]) => void;
   setCurrentAgent: (agent: string | null) => void;
   logout: () => void;
   login: (user: User) => void;
   setChatOpen: (open: boolean) => void;
+  setHydrated: (hydrated: boolean) => void;
 }
 
-// 从 localStorage 恢复用户数据
-const getStoredUser = (): User | null => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-    if (!token || !userStr) return null;
-    const user = JSON.parse(userStr);
-    return { ...user, token };
-  } catch {
-    return null;
-  }
-};
+export const useStore = create<StoreState>()(
+  persist(
+    (set) => ({
+      user: null,
+      tasks: [],
+      currentAgent: null,
+      isLoggedIn: false,
+      chatOpen: false,
+      hydrated: false,
+      setUser: (user) => set({ user, isLoggedIn: !!user }),
+      setTasks: (tasks) => set({ tasks }),
+      setCurrentAgent: (agent) => set({ currentAgent: agent }),
+      logout: () => {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+        }
+        set({ user: null, isLoggedIn: false, currentAgent: null, chatOpen: false });
+      },
+      login: (user) => {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token', user.token);
+        }
+        set({ user, isLoggedIn: true });
+      },
+      setChatOpen: (open) => set({ chatOpen: open }),
+      setHydrated: (hydrated) => set({ hydrated }),
+    }),
+    {
+      name: 'agentwork-auth',
+      partialize: (state) => ({ user: state.user }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated(true);
+        // 兼容旧版本地存储：将 legacy token/user 迁移到 persist 存储
+        if (!state?.user && typeof window !== 'undefined') {
+          const token = localStorage.getItem('token');
+          const userStr = localStorage.getItem('user');
+          if (token && userStr) {
+            try {
+              const user = JSON.parse(userStr);
+              state?.login({ ...user, token });
+            } catch {
+              // ignore malformed legacy data
+            }
+          }
+        }
+      },
+    }
+  )
+);
 
 export const getToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
-  }
-  return null;
+  if (typeof window === 'undefined') return null;
+  // Prefer store state after hydration; fallback to legacy localStorage key
+  const user = useStore.getState().user;
+  if (user?.token) return user.token;
+  return localStorage.getItem('token');
 };
-
-const storedUser = typeof window !== 'undefined' ? getStoredUser() : null;
-
-export const useStore = create<StoreState>((set) => ({
-  user: storedUser,
-  tasks: [],
-  currentAgent: null,
-  isLoggedIn: !!storedUser,
-  chatOpen: false,
-  setUser: (user) => set({ user, isLoggedIn: !!user }),
-  setTasks: (tasks) => set({ tasks }),
-  setCurrentAgent: (agent) => set({ currentAgent: agent }),
-  setChatOpen: (open) => set({ chatOpen: open }),
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    set({ user: null, isLoggedIn: false, currentAgent: null, chatOpen: false });
-  },
-  login: (user) => {
-    localStorage.setItem('token', user.token);
-    localStorage.setItem('user', JSON.stringify(user));
-    set({ user, isLoggedIn: true });
-  },
-}));
