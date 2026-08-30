@@ -10,6 +10,7 @@ const paymentService = require('../services/paymentService');
 const logger = require('../utils/logger');
 const wechatPay = require('../services/wechatPay');
 const alipay = require('../services/alipay');
+const pool = require('../db/pool');
 
 // 支持的充值金额档位
 const RECHARGE_AMOUNT_OPTIONS = [100, 500, 2000, 10000];
@@ -40,15 +41,25 @@ router.get('/config', (req, res) => {
 /**
  * 创建充值订单
  * POST /api/payment/create
- * Body: { amount: number, gateway: 'mock' | 'wechat' | 'alipay' }
+ * Body: { amount: number, gateway: 'mock' | 'wechat' | 'alipay', productId?: string }
  */
 router.post('/create', authenticate, requireVerifiedUser, async (req, res) => {
   try {
-    const { amount, gateway = 'mock' } = req.body;
+    const { amount, gateway = 'mock', productId } = req.body;
     const userId = req.user.id;
 
-    if (!amount || amount < 1) {
-      return res.status(400).json({ success: false, message: '充值金额不能小于 1 元' });
+    let finalAmount = amount;
+    if (productId) {
+      const productResult = await pool.query('SELECT * FROM products WHERE id = $1 AND is_active = TRUE', [productId]);
+      if (productResult.rows.length === 0) {
+        return res.status(400).json({ success: false, message: '商品不存在或已下架' });
+      }
+      const product = productResult.rows[0];
+      finalAmount = parseFloat(product.price);
+    } else {
+      if (!amount || amount < 1) {
+        return res.status(400).json({ success: false, message: '充值金额不能小于 1 元' });
+      }
     }
 
     const supportedGateways = getGatewayOptions().map(g => g.value);
@@ -67,10 +78,11 @@ router.post('/create', authenticate, requireVerifiedUser, async (req, res) => {
 
     const order = await paymentService.createRechargeOrder({
       userId,
-      amount,
+      amount: finalAmount,
       gateway,
       clientIp,
-      description: `充值 ${amount.toFixed(2)} CNY`
+      description: productId ? undefined : `充值 ${finalAmount.toFixed(2)} CNY`,
+      productId
     });
 
     res.json({
@@ -82,7 +94,9 @@ router.post('/create', authenticate, requireVerifiedUser, async (req, res) => {
         gateway: order.gateway,
         status: order.status,
         createdAt: order.created_at,
-        expireAt: order.expire_at
+        expireAt: order.expire_at,
+        productId: order.product_id,
+        productType: order.product_type
       }
     });
   } catch (error) {

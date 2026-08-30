@@ -27,6 +27,7 @@ const adminWithdrawalRoutes = require('./routes/admin-withdrawal');
 const teamRoutes = require('./routes/teams');
 const consumptionRoutes = require('./routes/consumptions');
 const paymentRoutes = require('./routes/payment');
+const productRoutes = require('./routes/products');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -85,6 +86,7 @@ app.use('/api/v1/withdrawal', withdrawalRouter);
 app.use('/api/v1/admin', adminWithdrawalRoutes);
 app.use('/api/v1/deploy', deployRoutes(pool));
 app.use('/api/payment', paymentRoutes);
+app.use('/api/products', productRoutes);
 
 // 404 和错误处理
 app.use(notFound);

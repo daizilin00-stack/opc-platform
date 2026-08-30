@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   CreditCard,
@@ -36,6 +36,9 @@ interface PayConfig {
 
 function RechargeContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const productId = searchParams.get("productId");
+  const [product, setProduct] = useState<any>(null);
   const [amount, setAmount] = useState("100");
   const [method, setMethod] = useState("mock");
   const [config, setConfig] = useState<PayConfig | null>(null);
@@ -46,6 +49,27 @@ function RechargeContent() {
   const [error, setError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [payResult, setPayResult] = useState<any>(null);
+
+  useEffect(() => {
+    if (productId) {
+      fetchProduct();
+    }
+  }, [productId]);
+
+  const fetchProduct = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/products/${productId}`);
+      const data = await res.json();
+      if (data.success) {
+        setProduct(data.product);
+        setAmount(data.product.price.toString());
+      } else {
+        setError(data.message || "商品不存在或已下架");
+      }
+    } catch (err: any) {
+      setError(err.message || "加载商品信息失败");
+    }
+  };
 
   useEffect(() => {
     fetchConfig();
@@ -75,7 +99,7 @@ function RechargeContent() {
       setLoading(true);
       setError(null);
 
-      const data = await payment.createOrder(parseFloat(amount), method);
+      const data = await payment.createOrder(parseFloat(amount), method, productId || undefined);
       setOrder(data.order);
 
       if (method === "mock") {
@@ -275,40 +299,66 @@ function RechargeContent() {
           <Link href="/wallet" className="p-2 hover:bg-gray-700/50 rounded-lg transition">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-2xl font-bold">充值</h1>
+          <h1 className="text-2xl font-bold">{product ? "确认订单" : "充值"}</h1>
         </div>
 
-        {/* 金额选择 */}
+        {/* 商品信息 / 金额选择 */}
         <div className="bg-gray-800/50 rounded-2xl p-6 border border-gray-700/50 mb-6">
-          <div className="text-sm text-gray-400 mb-4">选择金额</div>
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {(config?.amountOptions || [50, 100, 200, 500, 1000, 2000]).map(
-              (amt) => (
-                <button
-                  key={amt}
-                  onClick={() => setAmount(amt.toString())}
-                  className={`py-3 rounded-xl font-medium transition ${
-                    amount === amt.toString()
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-700/50 text-gray-300 hover:bg-gray-700"
-                  }`}
-                >
-                  ¥{amt}
-                </button>
-              )
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400">自定义</span>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              min="1"
-              className="flex-1 bg-gray-700/50 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="输入金额"
-            />
-          </div>
+          {product ? (
+            <>
+              <div className="text-sm text-gray-400 mb-2">商品</div>
+              <div className="text-xl font-bold mb-1">{product.name}</div>
+              <p className="text-sm text-gray-400 mb-4">{product.description}</p>
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-3xl font-bold text-blue-400">¥{product.price}</span>
+                {product.creditValue > product.price && (
+                  <span className="text-sm text-green-400">到账 ¥{product.creditValue}</span>
+                )}
+              </div>
+              {product.tokenQuota > 0 && (
+                <div className="text-sm text-accent-400 mb-2">
+                  含 Token 额度 {product.tokenQuota.toLocaleString()} tokens
+                </div>
+              )}
+              {product.aiEmployees?.length > 0 && (
+                <div className="text-sm text-gray-400">
+                  包含 AI 员工：{product.aiEmployees.join(", ")}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="text-sm text-gray-400 mb-4">选择金额</div>
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                {(config?.amountOptions || [50, 100, 200, 500, 1000, 2000]).map(
+                  (amt) => (
+                    <button
+                      key={amt}
+                      onClick={() => setAmount(amt.toString())}
+                      className={`py-3 rounded-xl font-medium transition ${
+                        amount === amt.toString()
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-700/50 text-gray-300 hover:bg-gray-700"
+                      }`}
+                    >
+                      ¥{amt}
+                    </button>
+                  )
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-gray-400">自定义</span>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  min="1"
+                  className="flex-1 bg-gray-700/50 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="输入金额"
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* 支付方式 */}
@@ -382,7 +432,7 @@ function RechargeContent() {
               处理中...
             </>
           ) : (
-            `充值 ¥${amount}`
+            product ? `立即支付 ¥${amount}` : `充值 ¥${amount}`
           )}
         </button>
 

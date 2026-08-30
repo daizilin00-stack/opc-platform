@@ -208,10 +208,11 @@ export const payment = {
 
   // 创建充值订单
   // amount: 元，gateway: 'mock' | 'wechat' | 'alipay'
-  createOrder: (amount: number, gateway: string = 'mock') =>
+  // productId: 可选，购买套餐/商品时传入
+  createOrder: (amount: number, gateway: string = 'mock', productId?: string) =>
     request('/payment/create', {
       method: 'POST',
-      body: JSON.stringify({ amount, gateway }),
+      body: JSON.stringify({ amount, gateway, productId }),
     }),
 
   // 调起支付，获取支付参数

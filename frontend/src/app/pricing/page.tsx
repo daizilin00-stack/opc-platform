@@ -2,11 +2,17 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PROMOTION_PACKAGES, TOKEN_PACKAGES, LINE_BUNDLE_PROMOS, MODEL_PRICING_DISPLAY } from '@/lib/pricing';
 
 export default function PricingPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'promotion' | 'token' | 'model' | 'line'>('promotion');
   const [showAllModels, setShowAllModels] = useState(false);
+
+  const handleBuy = (productId: string) => {
+    router.push(`/recharge?productId=${productId}`);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -67,13 +73,16 @@ export default function PricingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/register" className={`block w-full text-center py-3 rounded-lg font-medium transition-colors ${
-                  plan.isPopular
-                    ? 'bg-brand-600 text-white hover:bg-brand-700'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}>
-                  {plan.id === 'promo-experience' ? '免费体验' : plan.id === 'promo-startup' ? '立即入驻' : '预约咨询'}
-                </Link>
+                <button
+                  onClick={() => handleBuy(plan.id)}
+                  className={`block w-full text-center py-3 rounded-lg font-medium transition-colors ${
+                    plan.isPopular
+                      ? 'bg-brand-600 text-white hover:bg-brand-700'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {plan.id === 'promo-experience' ? '立即体验' : plan.id === 'promo-startup' ? '立即入驻' : '立即开通'}
+                </button>
               </div>
             ))}
           </div>
@@ -104,9 +113,12 @@ export default function PricingPage() {
                     <span className="font-medium">{pkg.unitPrice}</span>
                   </div>
                 </div>
-                <Link href="/workspace" className="block w-full text-center py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium transition-colors">
-                  去充值
-                </Link>
+                <button
+                  onClick={() => handleBuy(pkg.id)}
+                  className="block w-full text-center py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700 font-medium transition-colors"
+                >
+                  立即充值
+                </button>
               </div>
             ))}
           </div>

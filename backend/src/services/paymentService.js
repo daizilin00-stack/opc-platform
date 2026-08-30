@@ -22,6 +22,15 @@ function generateOrderNo() {
   return `RO${y}${m}${d}${random}`;
 }
 
+function generateProductOrderNo() {
+  const date = new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const random = Math.floor(100000 + Math.random() * 900000);
+  return `PO${y}${m}${d}${random}`;
+}
+
 /**
  * 格式化金额（分/元）
  */
@@ -36,10 +45,19 @@ function toFen(amount) {
 /**
  * 创建充值订单
  */
-async function createRechargeOrder({ userId, amount, gateway = 'mock', clientIp, description, metadata = {} }) {
+async function createRechargeOrder({ userId, amount, gateway = 'mock', clientIp, description, metadata = {}, productId = null }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    let product = null;
+    if (productId) {
+      const productResult = await client.query('SELECT * FROM products WHERE id = $1 AND is_active = TRUE', [productId]);
+      if (productResult.rows.length === 0) {
+        throw new Error('商品不存在或已下架');
+      }
+      product = productResult.rows[0];
+    }
 
     // 获取或创建钱包
     let walletResult = await client.query(
@@ -56,29 +74,45 @@ async function createRechargeOrder({ userId, amount, gateway = 'mock', clientIp,
       walletId = newWallet.rows[0].id;
     }
 
-    const orderNo = generateOrderNo();
+    const orderNo = product ? generateProductOrderNo() : generateOrderNo();
     const expireAt = new Date(Date.now() + 30 * 60 * 1000); // 30 分钟有效
+    const orderAmount = product ? product.price : toYuan(amount);
+    const orderDescription = description || (product ? `购买 ${product.name}` : `充值 ${toYuan(amount)} CNY`);
+    const orderMetadata = {
+      ...metadata,
+      ...(product ? {
+        productId: product.id,
+        productType: product.type,
+        productName: product.name,
+        creditValue: parseFloat(product.credit_value),
+        tokenQuota: parseInt(product.token_quota, 10),
+        aiEmployees: product.ai_employees,
+        periodMonths: product.period_months
+      } : {})
+    };
 
     const orderResult = await client.query(
       `INSERT INTO recharge_orders
        (user_id, wallet_id, amount, currency, payment_method, gateway, status,
-        third_party_order_id, description, client_ip, notify_url, expire_at, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        third_party_order_id, description, client_ip, notify_url, expire_at, metadata, product_id, product_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
       [
         userId,
         walletId,
-        toYuan(amount),
+        orderAmount,
         'CNY',
         gateway,
         gateway,
         'pending',
         orderNo,
-        description || `充值 ${toYuan(amount)} CNY`,
+        orderDescription,
         clientIp || null,
         null,
         expireAt,
-        JSON.stringify(metadata)
+        JSON.stringify(orderMetadata),
+        product ? product.id : null,
+        product ? product.type : null
       ]
     );
 
@@ -252,11 +286,25 @@ async function handlePaymentSuccess(orderNo, thirdPartyTransactionId, gatewayRaw
     const walletId = order.wallet_id;
     const amount = parseFloat(order.amount);
 
+    // 加载商品信息（如果是商品订单）
+    let product = null;
+    let creditValue = amount;
+    if (order.product_id) {
+      const productResult = await client.query(
+        'SELECT * FROM products WHERE id = $1 FOR UPDATE',
+        [order.product_id]
+      );
+      if (productResult.rows.length > 0) {
+        product = productResult.rows[0];
+        creditValue = parseFloat(product.credit_value) || amount;
+      }
+    }
+
     // 更新订单状态
     const updatedOrderResult = await client.query(
       `UPDATE recharge_orders
        SET status = $1, paid_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP,
-           third_party_transaction_id = $2, gateway_raw_response = $3
+           third_party_transaction_id = $2, gateway_raw_response = $3, benefits_delivered = TRUE
        WHERE id = $4
        RETURNING *`,
       ['completed', thirdPartyTransactionId || null, JSON.stringify(gatewayRawResponse), order.id]
@@ -273,7 +321,7 @@ async function handlePaymentSuccess(orderNo, thirdPartyTransactionId, gatewayRaw
     }
 
     const wallet = walletResult.rows[0];
-    const newBalance = parseFloat(wallet.balance) + amount;
+    const newBalance = parseFloat(wallet.balance) + creditValue;
 
     // 更新钱包余额
     await client.query(
@@ -282,6 +330,10 @@ async function handlePaymentSuccess(orderNo, thirdPartyTransactionId, gatewayRaw
     );
 
     // 创建钱包交易记录
+    const transactionDescription = product
+      ? `购买 ${product.name}，到账 ${creditValue.toFixed(2)} CNY（${order.gateway}）`
+      : `充值 ${amount.toFixed(2)} CNY（${order.gateway}）`;
+
     await client.query(
       `INSERT INTO wallet_transactions
        (user_id, wallet_id, related_recharge_order_id, transaction_type, direction,
@@ -291,19 +343,42 @@ async function handlePaymentSuccess(orderNo, thirdPartyTransactionId, gatewayRaw
         userId,
         walletId,
         order.id,
-        'recharge',
+        product ? 'subscription' : 'recharge',
         'in',
-        amount,
+        creditValue,
         'CNY',
-        `充值 ${amount.toFixed(2)} CNY（${order.gateway}）`,
+        transactionDescription,
         'completed',
         newBalance,
         wallet.frozen || 0
       ]
     );
 
+    // 开通商品权益
+    if (product && product.type === 'ai_employee_package') {
+      const expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + (product.period_months || 1));
+
+      await client.query(
+        `INSERT INTO subscriptions
+         (user_id, order_id, product_id, status, started_at, expires_at, ai_employees, token_quota)
+         VALUES ($1, $2, $3, 'active', CURRENT_TIMESTAMP, $4, $5, $6)`,
+        [userId, order.id, product.id, expiresAt, product.ai_employees || '{}', product.token_quota || 0]
+      );
+
+      // 启用硅基员工平台权限
+      await client.query(
+        `INSERT INTO user_services (user_id, silicon_employee_enabled, silicon_employee_enabled_at)
+         VALUES ($1, TRUE, CURRENT_TIMESTAMP)
+         ON CONFLICT (user_id) DO UPDATE SET
+           silicon_employee_enabled = TRUE,
+           silicon_employee_enabled_at = CURRENT_TIMESTAMP`,
+        [userId]
+      );
+    }
+
     await client.query('COMMIT');
-    logger.info('支付成功回调处理完成，订单号:', orderNo, '金额:', amount);
+    logger.info('支付成功回调处理完成，订单号:', orderNo, '金额:', amount, '到账:', creditValue, '商品:', product ? product.name : '无');
 
     return { alreadyProcessed: false, order: updatedOrderResult.rows[0], newBalance };
   } catch (error) {
