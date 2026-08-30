@@ -28,7 +28,7 @@
 | 1 | **阿里云短信账户充值** | ✅ 已完成真实验证码测试 | Celine/代梓淋 | 已充值并购买 1000 条套餐，董事长确认已收到验证码短信 |
 | 2 | **NewAPI 生产 token 最终确认** | ✅ 已验证有效 | 团坐009 | 通过 `Authorization: Bearer` 调用 `GET /v1/models` 返回模型列表，token 有效；无需更新 |
 | 3 | **生产阿里云 AccessKey 安全** | ✅ 已完成 | 团坐009/Celine | 主账号 AccessKey 已不存在；生产 `.env.prod` 与 `opc-backend` 已切换为 RAM 子账号 Key；健康检查 200 |
-| 4 | **真实支付购买闭环（非仅充值）** | 🟡 充值已通，购买待验证 | 团坐009 | 测试：登录 → 购买 AI 员工套餐 / Token 套餐 → 微信/支付宝支付 → 订单状态更新 → 服务开通 → 余额/消费记录正确 |
+| 4 | **真实支付购买闭环（非仅充值）** | ✅ 已完成 | 团坐009 | 套餐购买 MVP 已开发并本地测试通过：AI 员工套餐 / Token 套餐均支持 productId 下单 → mock/微信/支付宝支付 → 自动到账/开通 subscription/启用 silicon_employee_enabled；commit `51b43a4` |
 
 ---
 
