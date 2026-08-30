@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { TOKEN_PACKAGES, MODEL_PRICING, MODEL_PRICING_DISPLAY } from '@/lib/pricing';
 import { useStore } from '@/lib/store';
 
 export default function TokenCenterPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'packages' | 'calculator' | 'usage'>('packages');
   const [selectedModel, setSelectedModel] = useState('gpt-5.4');
   const [promptTokens, setPromptTokens] = useState(1000);
@@ -13,6 +15,14 @@ export default function TokenCenterPage() {
   const isLoggedIn = useStore((state) => state.isLoggedIn);
 
   const [showAllModels, setShowAllModels] = useState(false);
+
+  const handleBuy = (productId: string) => {
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
+    router.push(`/recharge?productId=${productId}`);
+  };
 
   const modelOptions = MODEL_PRICING_DISPLAY.map((m) => ({
     ...m,
@@ -110,11 +120,14 @@ export default function TokenCenterPage() {
                     </div>
                   </div>
 
-                  <Link href={isLoggedIn ? `/order?service=token&plan=${pkg.id}` : '/register'} className={`block w-full text-center py-3 rounded-lg font-medium transition-colors ${
-                    pkg.id === 'token-standard' ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}>
+                  <button
+                    onClick={() => handleBuy(pkg.id)}
+                    className={`block w-full text-center py-3 rounded-lg font-medium transition-colors ${
+                      pkg.id === 'token-standard' ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
                     {isLoggedIn ? '立即购买' : '登录后购买'}
-                  </Link>
+                  </button>
                 </div>
               ))}
             </div>

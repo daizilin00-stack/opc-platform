@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PROMOTION_PACKAGES, AGENT_EMPLOYEE_PRICING } from '@/lib/pricing';
 import { useStore } from '@/lib/store';
 
 export default function AIEmployeesPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'packages' | 'agents' | 'faq'>('packages');
   const isLoggedIn = useStore((state) => state.isLoggedIn);
 
@@ -17,6 +19,14 @@ export default function AIEmployeesPage() {
     { key: 'compliance', ...AGENT_EMPLOYEE_PRICING.compliance, icon: '🛡️', desc: '法规跟踪、资质审核、合同审查' },
     { key: 'assistant', ...AGENT_EMPLOYEE_PRICING.assistant, icon: '📝', desc: '日程管理、提醒、统计、通知' },
   ];
+
+  const handleBuyPackage = (productId: string) => {
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
+    router.push(`/recharge?productId=${productId}`);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -112,11 +122,14 @@ export default function AIEmployeesPage() {
                     ))}
                   </ul>
 
-                  <Link href={isLoggedIn ? `/order?service=ai&plan=${plan.id}` : '/register'} className={`block w-full text-center py-3 rounded-lg font-medium transition-colors ${
-                    plan.isPopular ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}>
+                  <button
+                    onClick={() => handleBuyPackage(plan.id)}
+                    className={`block w-full text-center py-3 rounded-lg font-medium transition-colors ${
+                      plan.isPopular ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
                     {isLoggedIn ? '立即下单' : '立即开通'}
-                  </Link>
+                  </button>
                 </div>
               ))}
             </div>
@@ -147,8 +160,8 @@ export default function AIEmployeesPage() {
                     ¥{agent.monthly}
                     <span className="text-sm font-medium text-slate-400">/月</span>
                   </div>
-                  <Link href={isLoggedIn ? `/order?service=ai&agent=${agent.key}` : '/register'} className="block w-full text-center py-2 rounded-lg font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
-                    {isLoggedIn ? '立即雇佣' : '登录后雇佣'}
+                  <Link href={isLoggedIn ? '/support' : '/login'} className="block w-full text-center py-2 rounded-lg font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+                    {isLoggedIn ? '联系运营' : '登录后咨询'}
                   </Link>
                 </div>
               ))}
