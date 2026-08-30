@@ -13,7 +13,7 @@
 | 生产站点可访问 | ✅ `https://csdp-agentwork.com` 200，HTTPS/ICP 正常 |
 | 核心功能上线 | ✅ 注册/登录/实名/企业认证/合同/钱包/模型调用/充值 |
 | 前端 UI 改造 | ✅ 客服浮窗、部署页、创建 Agent、首页跳转、讲师分润方案 |
-| 真实支付闭环 | ✅ 微信 ¥0.01 + 支付宝 ¥1.00 真实充值已跑通 |
+| 真实支付闭环 | ✅ 套餐购买 MVP 已部署生产并通过 mock 测试（AI 员工套餐 + Token 套餐均到账/开通） |
 | Logo 修复 | ✅ 左上角 `logo-csdp.png` 已正常显示 |
 | 生产部署流程 | ✅ `deploy/deploy.sh` 已兼容 ECS 的 nginx `conf.d` 目录 |
 
@@ -28,7 +28,7 @@
 | 1 | **阿里云短信账户充值** | ✅ 已完成真实验证码测试 | Celine/代梓淋 | 已充值并购买 1000 条套餐，董事长确认已收到验证码短信 |
 | 2 | **NewAPI 生产 token 最终确认** | ✅ 已验证有效 | 团坐009 | 通过 `Authorization: Bearer` 调用 `GET /v1/models` 返回模型列表，token 有效；无需更新 |
 | 3 | **生产阿里云 AccessKey 安全** | ✅ 已完成 | 团坐009/Celine | 主账号 AccessKey 已不存在；生产 `.env.prod` 与 `opc-backend` 已切换为 RAM 子账号 Key；健康检查 200 |
-| 4 | **真实支付购买闭环（非仅充值）** | ✅ 已完成 | 团坐009 | 套餐购买 MVP 已开发并本地测试通过：AI 员工套餐 / Token 套餐均支持 productId 下单 → mock/微信/支付宝支付 → 自动到账/开通 subscription/启用 silicon_employee_enabled；commit `51b43a4` |
+| 4 | **真实支付购买闭环（非仅充值）** | ✅ 已完成并部署生产 | 团坐009 | 套餐购买 MVP 已开发、本地测试通过并部署生产：AI 员工套餐 / Token 套餐均支持 productId 下单 → mock/微信/支付宝支付 → 自动到账/开通 subscription/启用 silicon_employee_enabled；2026-08-30 20:55 生产 mock 测试全部通过；commit `51b43a4`、`24ce751`、`e065108` |
 
 ---
 
