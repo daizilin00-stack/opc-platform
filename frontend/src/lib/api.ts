@@ -250,5 +250,14 @@ export const payment = {
   getOrder: (orderId: string) => request(`/payment/orders/${orderId}`),
 };
 
-const api = { auth, billing, models, tasks, agents, users, products, payment };
+const deploy = {
+  createAgent: (data: any) => request('/v1/deploy/agents', { method: 'POST', body: data }),
+  listAgents: () => request('/v1/deploy/agents'),
+  getAgent: (id: string) => request(`/v1/deploy/agents/${id}`),
+  startAgent: (id: string) => request(`/v1/deploy/agents/${id}/start`, { method: 'POST' }),
+  stopAgent: (id: string) => request(`/v1/deploy/agents/${id}/stop`, { method: 'POST' }),
+  deleteAgent: (id: string) => request(`/v1/deploy/agents/${id}`, { method: 'DELETE' }),
+};
+
+const api = { auth, billing, models, tasks, agents, users, products, payment, deploy };
 export default api;

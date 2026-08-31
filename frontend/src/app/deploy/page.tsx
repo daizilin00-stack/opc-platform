@@ -1,51 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
+import api from '@/lib/api';
 import { DEPLOY_PACKAGES, DEPLOY_ADDONS } from '@/lib/deploy-pricing';
 import { MODEL_PRICING } from '@/lib/pricing';
 
 export default function DeployPage() {
-  const [activeTab, setActiveTab] = useState<'packages' | 'comparison' | 'calculator' | 'agents' | 'create'>('packages');
+  const [activeTab, setActiveTab] = useState<'packages' | 'comparison' | 'calculator' | 'agents'>('packages');
   const [selectedCase, setSelectedCase] = useState<number | null>(null);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(false);
   const setChatOpen = useStore((state) => state.setChatOpen);
   const isLoggedIn = useStore((state) => state.isLoggedIn);
 
-  const agents = [
-    {
-      id: 'agt_abc123',
-      name: '客服助手',
-      status: 'running',
-      model: 'gpt-4o',
-      endpoint: 'https://agt-abc123.agents.opc-platform.com',
-      created_at: '2026-06-29T10:00:00Z',
-      hourly_price: 0.05
-    },
-    {
-      id: 'agt_def456',
-      name: '销售助手',
-      status: 'stopped',
-      model: 'claude-3.5-sonnet',
-      endpoint: 'https://agt-def456.agents.opc-platform.com',
-      created_at: '2026-06-28T15:30:00Z',
-      hourly_price: 0.05
+  useEffect(() => {
+    if (activeTab === 'agents' && isLoggedIn) {
+      setAgentsLoading(true);
+      api.deploy.listAgents()
+        .then((res: any) => setAgents(res?.data || []))
+        .catch(() => setAgents([]))
+        .finally(() => setAgentsLoading(false));
     }
-  ];
-
-  const statusColors: Record<string, string> = {
-    running: 'bg-green-100 text-green-700',
-    stopped: 'bg-gray-100 text-gray-700',
-    creating: 'bg-blue-100 text-blue-700',
-    error: 'bg-red-100 text-red-700'
-  };
-
-  const statusText: Record<string, string> = {
-    running: '运行中',
-    stopped: '已停止',
-    creating: '创建中',
-    error: '异常'
-  };
+  }, [activeTab, isLoggedIn]);
 
   const caseStudies = [
     {
@@ -93,7 +71,7 @@ export default function DeployPage() {
     },
     {
       q: '超出套餐的调用次数后怎么办？',
-      a: '系统会自动按量计费（¥0.01/次），您也可以提前购买调用包。当余额不足时，我们会发送预警通知，避免服务中断。',
+      a: '正式上线后，系统会自动按量计费，并支持提前购买调用包。当前平台仍在内测，具体资费以内测开放后的公告为准。',
     },
     {
       q: '支持哪些编程语言和框架？',
@@ -148,18 +126,18 @@ export default function DeployPage() {
                 你只需专注业务逻辑。
               </p>
               <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg">
-                  <span className="text-xl">🚀</span>
-                  <span>一键部署</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg">
-                  <span className="text-xl">🤖</span>
-                  <span>20+ 模型即插即用</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg">
-                  <span className="text-xl">🌐</span>
-                  <span>全球边缘加速</span>
-                </div>
+                <button
+                  onClick={() => setChatOpen(true)}
+                  className="px-6 py-3 bg-white text-brand-700 rounded-lg font-semibold hover:bg-slate-100 transition-colors"
+                >
+                  预约演示
+                </button>
+                <Link
+                  href="#packages"
+                  className="px-6 py-3 bg-white/10 text-white rounded-lg font-semibold hover:bg-white/20 transition-colors"
+                >
+                  查看方案
+                </Link>
               </div>
             </div>
             <div className="relative">
@@ -205,6 +183,19 @@ export default function DeployPage() {
               {label}
             </button>
           ))}
+        </div>
+
+        {/* 内测通知 */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-10 flex items-start gap-3">
+          <span className="text-xl">🚧</span>
+          <div>
+            <h3 className="font-semibold text-amber-900">OpenClaw 部署平台正在内测中</h3>
+            <p className="text-sm text-amber-800 mt-1">
+              当前页面仅展示部署方案与成本参考，暂不支持自助创建 Agent。如需体验或部署，请
+              <button onClick={() => setChatOpen(true)} className="font-medium underline hover:text-amber-600">联系销售</button>
+              或提交需求，我们将为你提供一对一演示。
+            </p>
+          </div>
         </div>
 
         {/* Packages Tab */}
@@ -295,13 +286,15 @@ export default function DeployPage() {
                       咨询销售
                     </button>
                   ) : (
-                    <Link href={isLoggedIn ? `/order?service=deploy&plan=${plan.id}` : '/register'} 
+                    <button
+                      onClick={() => setChatOpen(true)}
                       className={`block w-full text-center py-3 rounded-lg font-medium transition-colors ${
                         plan.isPopular ? 'bg-brand-600 text-white hover:bg-brand-700' : 
                         'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}>
-                      {isLoggedIn ? '立即开通' : '登录后开通'}
-                    </Link>
+                      }`}
+                    >
+                      预约演示
+                    </button>
                   )}
                 </div>
               ))}
@@ -328,29 +321,35 @@ export default function DeployPage() {
               </div>
             </div>
 
-            {/* 免费额度 */}
+            {/* 内测申请 */}
             <div className="bg-accent-50 rounded-xl border border-accent-200 p-6">
               <div className="flex items-center gap-3 mb-4">
-                <span className="text-3xl">🎁</span>
+                <span className="text-3xl">🧪</span>
                 <div>
-                  <h3 className="font-bold text-slate-900">免费试用</h3>
-                  <p className="text-sm text-slate-600">注册即送 1个Agent + 500次调用，7天有效</p>
+                  <h3 className="font-bold text-slate-900">内测申请</h3>
+                  <p className="text-sm text-slate-600">OpenClaw 部署平台正在内测，如需提前体验，请提交需求</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-accent-500 font-bold">✓</span>
-                  <span>注册即送：1个Agent + 500次调用</span>
+                  <span>预约 1 对 1 产品演示</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-accent-500 font-bold">✓</span>
-                  <span>邀请奖励：每邀1人 +200次调用</span>
+                  <span>提交部署需求评估</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-accent-500 font-bold">✓</span>
-                  <span>开园特惠：体验版首月 ¥9.9</span>
+                  <span>开园后优先开通权限</span>
                 </div>
               </div>
+              <button
+                onClick={() => setChatOpen(true)}
+                className="mt-4 w-full md:w-auto px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+              >
+                预约演示
+              </button>
             </div>
           </div>
         )}
@@ -779,6 +778,70 @@ function Slider({
         <span>{min.toLocaleString()}{unit}</span>
         <span>{max.toLocaleString()}{unit}</span>
       </div>
+
+      {activeTab === 'agents' && (
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-slate-900">我的 Agent</h2>
+            <Link href="/deploy/create" className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors">
+              + 创建 Agent
+            </Link>
+          </div>
+          {!isLoggedIn ? (
+            <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
+              <p className="text-slate-500 mb-4">登录后查看已部署的 Agent</p>
+              <Link href="/login?redirect=/deploy" className="px-6 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors">
+                去登录
+              </Link>
+            </div>
+          ) : agentsLoading ? (
+            <div className="text-center py-12 text-slate-500">加载中...</div>
+          ) : agents.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
+              <div className="text-4xl mb-3">🤖</div>
+              <h3 className="text-lg font-medium text-slate-900 mb-2">暂无 Agent</h3>
+              <p className="text-sm text-slate-500 mb-6">创建你的第一个 Agent，体验 OpenClaw 部署能力</p>
+              <Link href="/deploy/create" className="px-6 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors">
+                创建 Agent
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {agents.map((agent: any) => (
+                <div key={agent.id} className="bg-white rounded-xl border border-slate-200 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-slate-900">{agent.name}</h3>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      agent.status === 'running' ? 'bg-green-100 text-green-700' :
+                      agent.status === 'creating' ? 'bg-blue-100 text-blue-700' :
+                      agent.status === 'error' ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {agent.status === 'running' ? '运行中' : agent.status === 'creating' ? '创建中' : agent.status === 'error' ? '异常' : agent.status}
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-sm text-slate-600 mb-4">
+                    <div className="flex justify-between"><span>模型</span><span className="font-medium text-slate-900">{agent.model}</span></div>
+                    <div className="flex justify-between"><span>创建时间</span><span className="font-medium text-slate-900">{agent.created_at ? new Date(agent.created_at).toLocaleDateString('zh-CN') : '-'}</span></div>
+                    <div className="flex justify-between"><span>计算费</span><span className="font-medium text-slate-900">¥{agent.hourly_price}/小时</span></div>
+                  </div>
+                  <div className="bg-slate-50 rounded-lg p-3 text-xs font-mono text-slate-600 break-all mb-4">
+                    {agent.endpoint || '等待分配端点...'}
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="flex-1 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors">
+                      测试对话
+                    </button>
+                    <button className="flex-1 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors">
+                      详情
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

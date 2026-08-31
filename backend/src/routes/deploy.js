@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, requireVerifiedUser } = require('../middleware/auth');
 const DeployService = require('../services/deployService');
+const { chatCompletion, chatCompletionStream } = require('../services/modelProxy');
 
 module.exports = (db) => {
   const deployService = new DeployService(db);
@@ -255,6 +256,87 @@ module.exports = (db) => {
       code: 0,
       data: templates
     });
+  });
+
+  /**
+   * Agent 对话接口（OpenAI-compatible）
+   * POST /api/v1/deploy/chat
+   * 通过 Authorization: Bearer <agent-api-key> 鉴权
+   */
+  router.post('/chat', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization || '';
+      const apiKey = authHeader.replace(/^Bearer\s+/i, '');
+
+      if (!apiKey) {
+        return res.status(401).json({ error: 'Missing API key' });
+      }
+
+      const agent = await deployService.verifyApiKey(apiKey);
+      if (!agent) {
+        return res.status(401).json({ error: 'Invalid API key' });
+      }
+
+      const { model, messages, temperature, max_tokens, stream } = req.body;
+      const modelId = model || agent.model || 'gpt-5.4-mini';
+
+      if (stream) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        try {
+          const generator = chatCompletionStream(modelId, messages, {
+            temperature: temperature ?? 0.7,
+            max_tokens: max_tokens ?? 2048
+          });
+
+          let promptTokens = 0;
+          let completionTokens = 0;
+
+          for await (const chunk of generator) {
+            if (chunk.choices) {
+              const delta = chunk.choices[0]?.delta;
+              if (delta?.content) {
+                res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+              }
+            }
+            if (chunk.usage) {
+              promptTokens = chunk.usage.prompt_tokens || 0;
+              completionTokens = chunk.usage.completion_tokens || 0;
+            }
+          }
+
+          res.write('data: [DONE]\n\n');
+          res.end();
+
+          // 记录用量（异步，不阻塞响应）
+          if (promptTokens || completionTokens) {
+            const cost = (promptTokens / 1000 * 0.0041) + (completionTokens / 1000 * 0.0098);
+            deployService.recordModelUsage(agent.id, promptTokens, completionTokens, cost).catch(console.error);
+          }
+        } catch (err) {
+          res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+          res.end();
+        }
+      } else {
+        const response = await chatCompletion(modelId, messages, {
+          temperature: temperature ?? 0.7,
+          max_tokens: max_tokens ?? 2048
+        });
+
+        res.json(response);
+
+        if (response.usage) {
+          const { prompt_tokens, completion_tokens } = response.usage;
+          const cost = (prompt_tokens / 1000 * 0.0041) + (completion_tokens / 1000 * 0.0098);
+          deployService.recordModelUsage(agent.id, prompt_tokens, completion_tokens, cost).catch(console.error);
+        }
+      }
+    } catch (error) {
+      console.error('Agent 对话失败:', error);
+      res.status(500).json({ error: '对话失败: ' + error.message });
+    }
   });
 
   return router;

@@ -23,6 +23,7 @@ services:
       - ./backend/.env:/app/.env
       - ./backend/scripts:/app/scripts
       - ./backend/certs:/app/certs:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     command: sh -c "npm install && npm run dev"
     restart: unless-stopped
     networks:
@@ -98,6 +99,15 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
+    networks:
+      - opc-network
+
+  # Agent 基础镜像构建服务（仅用于构建镜像）
+  agent-base:
+    build: ./agent-base
+    image: opc/agent-base:v1
+    container_name: opc-agent-base-builder
+    command: echo "agent-base image built"
     networks:
       - opc-network
 

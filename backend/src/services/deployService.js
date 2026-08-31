@@ -4,8 +4,7 @@
  * 负责创建、管理、销毁 Agent Docker 容器
  */
 
-const { execSync, spawn } = require('child_process');
-const { v4: uuidv4 } = require('uuid');
+const { execSync } = require('child_process');
 const crypto = require('crypto');
 
 class DeployService {
@@ -35,13 +34,12 @@ class DeployService {
   async createAgent(userId, config) {
     const agentId = this.generateAgentId();
     const apiKey = this.generateApiKey(agentId);
-    
-    // 1. 写入数据库
+
     await this.db.query(
       `INSERT INTO deploy_agents 
        (id, user_id, name, description, template, model, system_prompt, 
         api_key_hash, cpu_limit, memory_limit, storage_limit, hourly_price, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'creating')`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'creating')`,
       [agentId, userId, config.name, config.description, config.template,
        config.model, config.system_prompt || '',
        this.hashKey(apiKey), config.resources?.cpu || '1',
@@ -49,8 +47,8 @@ class DeployService {
        config.pricing?.compute?.hourly || 0.05]
     );
 
-    // 2. 异步创建容器（不阻塞响应）
-    this.createContainer(agentId, config).catch(err => {
+    // 异步创建容器
+    this.createContainer(agentId, config, apiKey).catch(err => {
       console.error(`创建容器失败 ${agentId}:`, err);
       this.updateAgentStatus(agentId, 'error');
     });
@@ -66,45 +64,43 @@ class DeployService {
   /**
    * 创建 Docker 容器
    */
-  async createContainer(agentId, config) {
+  async createContainer(agentId, config, apiKey) {
     const networkName = `${this.networkPrefix}${agentId}`;
     const containerName = `opc-agent-${agentId}`;
-    
+
     try {
-      // 1. 创建独立网络
       execSync(`docker network create ${networkName} 2>/dev/null || true`);
 
-      // 2. 启动容器
+      const opcApiBase = process.env.OPC_API_BASE_URL || 'http://host.docker.internal:3003';
+
       const envVars = [
         `-e AGENT_ID=${agentId}`,
         `-e MODEL_PROVIDER=opc`,
-        `-e MODEL_BASE_URL=${process.env.OPC_API_BASE_URL || 'http://host.docker.internal:3003/v1'}`,
-        `-e MODEL_API_KEY=${config.api_key}`,
-        `-e SYSTEM_PROMPT=${config.system_prompt || ''}`,
-        `-e MODEL=${config.model || 'gpt-4o'}`
+        `-e MODEL_BASE_URL=${opcApiBase}`,
+        `-e MODEL_API_KEY=***
+        `-e SYSTEM_PROMPT=${(config.system_prompt || '').replace(/"/g, '\\"')}`,
+        `-e MODEL=${config.model || 'gpt-5.4-mini'}`
       ];
 
       const cmd = `docker run -d \\
         --name ${containerName} \\
         --network ${networkName} \\
         --cpus=${config.resources?.cpu || '1'} \\
-        --memory=${config.resources?.memory || '2g'} \\
+        --memory=${(config.resources?.memory || '2G').toLowerCase()} \\
         ${envVars.join(' ')} \\
         -p 0:8080 \\
         --restart unless-stopped \\
         opc/agent-base:v1`;
 
       const containerId = execSync(cmd).toString().trim();
-      
-      // 3. 获取映射端口
-      const portInfo = execSync(`docker port ${containerName} 8080`).toString().trim();
-      const hostPort = portInfo.split(':')[1];
 
-      // 4. 更新数据库
+      const portInfo = execSync(`docker port ${containerName} 8080`).toString().trim();
+      const hostPort = portInfo.split(':').pop();
+
       await this.db.query(
         `UPDATE deploy_agents 
-         SET container_id = ?, status = 'running', endpoint = ?, updated_at = NOW()
-         WHERE id = ?`,
+         SET container_id = $1, status = 'running', endpoint = $2, updated_at = NOW()
+         WHERE id = $3`,
         [containerId, `http://localhost:${hostPort}`, agentId]
       );
 
@@ -149,18 +145,14 @@ class DeployService {
   async deleteAgent(agentId) {
     const containerName = `opc-agent-${agentId}`;
     const networkName = `${this.networkPrefix}${agentId}`;
-    
+
     try {
-      // 1. 停止并删除容器
       execSync(`docker stop ${containerName} 2>/dev/null || true`);
       execSync(`docker rm ${containerName} 2>/dev/null || true`);
-      
-      // 2. 删除网络
       execSync(`docker network rm ${networkName} 2>/dev/null || true`);
-      
-      // 3. 更新数据库
+
       await this.updateAgentStatus(agentId, 'destroyed');
-      
+
       return { success: true };
     } catch (error) {
       throw new Error(`删除失败: ${error.message}`);
@@ -171,104 +163,60 @@ class DeployService {
    * 获取 Agent 列表
    */
   async listAgents(userId) {
-    const [agents] = await this.db.query(
+    const { rows } = await this.db.query(
       `SELECT id, name, description, status, model, endpoint, 
               hourly_price, created_at, updated_at
        FROM deploy_agents 
-       WHERE user_id = ? AND status != 'destroyed'
+       WHERE user_id = $1 AND status != 'destroyed'
        ORDER BY created_at DESC`,
       [userId]
     );
-    return agents;
+    return rows;
   }
 
   /**
    * 获取 Agent 详情
    */
   async getAgent(agentId) {
-    const [agents] = await this.db.query(
-      `SELECT * FROM deploy_agents WHERE id = ?`,
+    const { rows } = await this.db.query(
+      `SELECT * FROM deploy_agents WHERE id = $1`,
       [agentId]
     );
-    return agents[0] || null;
-  }
-
-  /**
-   * 获取用量统计
-   */
-  async getUsage(agentId, startDate, endDate) {
-    const [usage] = await this.db.query(
-      `SELECT 
-        SUM(hours) as total_hours,
-        SUM(prompt_tokens) as total_prompt_tokens,
-        SUM(completion_tokens) as total_completion_tokens,
-        SUM(compute_cost) as total_compute_cost,
-        SUM(model_cost) as total_model_cost,
-        SUM(total_cost) as total_cost
-       FROM deploy_agent_usage 
-       WHERE agent_id = ? AND date BETWEEN ? AND ?`,
-      [agentId, startDate, endDate]
-    );
-    return usage[0];
-  }
-
-  /**
-   * 记录模型调用用量
-   */
-  async recordModelUsage(agentId, promptTokens, completionTokens) {
-    const today = new Date().toISOString().split('T')[0];
-    const cost = this.calculateModelCost(promptTokens, completionTokens);
-    
-    await this.db.query(
-      `INSERT INTO deploy_agent_usage 
-       (agent_id, date, prompt_tokens, completion_tokens, model_cost)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-       prompt_tokens = prompt_tokens + VALUES(prompt_tokens),
-       completion_tokens = completion_tokens + VALUES(completion_tokens),
-       model_cost = model_cost + VALUES(model_cost)`,
-      [agentId, today, promptTokens, completionTokens, cost]
-    );
-  }
-
-  /**
-   * 计算模型成本
-   */
-  calculateModelCost(promptTokens, completionTokens) {
-    // 按 LingAPI 2.4折价格计算
-    const inputPrice = 0.0041;  // ¥0.0041/1K tokens
-    const outputPrice = 0.0098; // ¥0.0098/1K tokens
-    
-    return (promptTokens / 1000 * inputPrice) + 
-           (completionTokens / 1000 * outputPrice);
-  }
-
-  /**
-   * 更新 Agent 状态
-   */
-  async updateAgentStatus(agentId, status) {
-    await this.db.query(
-      `UPDATE deploy_agents SET status = ?, updated_at = NOW() WHERE id = ?`,
-      [status, agentId]
-    );
-  }
-
-  /**
-   * 哈希 API Key
-   */
-  hashKey(key) {
-    return crypto.createHash('sha256').update(key).digest('hex');
+    return rows[0] || null;
   }
 
   /**
    * 验证 API Key
    */
-  verifyApiKey(apiKey) {
+  async verifyApiKey(apiKey) {
     const parts = apiKey.split('-');
     if (parts.length !== 4 || parts[0] !== 'opc' || parts[1] !== 'agt') {
       return null;
     }
-    return parts[2]; // 返回 agent_id
+    const agentId = `agt_${parts[2]}`;
+    const agent = await this.getAgent(agentId);
+    if (!agent) return null;
+    if (agent.api_key_hash !== this.hashKey(apiKey)) return null;
+    if (agent.status !== 'running') return null;
+    return agent;
+  }
+
+  /**
+   * 记录模型调用用量
+   */
+  async recordModelUsage(agentId, promptTokens, completionTokens, modelCost) {
+    const today = new Date().toISOString().split('T')[0];
+
+    await this.db.query(
+      `INSERT INTO deploy_agent_usage 
+       (agent_id, date, prompt_tokens, completion_tokens, model_cost)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (agent_id, date) DO UPDATE SET
+       prompt_tokens = deploy_agent_usage.prompt_tokens + EXCLUDED.prompt_tokens,
+       completion_tokens = deploy_agent_usage.completion_tokens + EXCLUDED.completion_tokens,
+       model_cost = deploy_agent_usage.model_cost + EXCLUDED.model_cost`,
+      [agentId, today, promptTokens, completionTokens, modelCost]
+    );
   }
 }
 

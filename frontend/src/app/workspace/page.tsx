@@ -24,6 +24,7 @@ function WorkspaceContent() {
   const [tokenUsage, setTokenUsage] = useState<any>(null);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
   const user = useStore((state) => state.user);
 
   useEffect(() => {
@@ -31,18 +32,20 @@ function WorkspaceContent() {
       setLoading(true);
       setError('');
       try {
-        const [profileRes, walletRes, usageRes, subRes, ordersRes] = await Promise.all([
+        const [profileRes, walletRes, usageRes, subRes, ordersRes, agentsRes] = await Promise.all([
           api.users.getProfile().catch(() => null),
           api.billing.getWallet().catch(() => null),
           api.billing.getTokenUsage().catch(() => null),
           api.products.getSubscriptions().catch(() => null),
           api.payment.listOrders({ limit: 5 }).catch(() => null),
+          api.deploy.listAgents().catch(() => null),
         ]);
         setProfile(profileRes);
         setWallet(walletRes);
         setTokenUsage(usageRes);
         setSubscriptions(subRes?.subscriptions || []);
         setOrders(ordersRes?.orders || []);
+        setAgents(agentsRes?.data || []);
       } catch (err: any) {
         setError(err.message || '加载数据失败');
       } finally {
@@ -177,7 +180,45 @@ function WorkspaceContent() {
           </div>
         </div>
 
-        {/* 标签页 */}
+        {/* 我的 Agent */}
+        <div className="card mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🚀</span>
+              <h3 className="font-semibold text-gray-900">我的 OpenClaw Agent</h3>
+            </div>
+            <Link href="/deploy/create" className="text-sm text-brand-600 hover:text-brand-700 font-medium">
+              + 创建 Agent
+            </Link>
+          </div>
+          {agents.length > 0 ? (
+            <div className="space-y-3">
+              {agents.slice(0, 5).map((agent: any) => (
+                <div key={agent.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div>
+                    <div className="font-medium text-gray-900">{agent.name}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">模型：{agent.model} · 创建于 {agent.created_at ? new Date(agent.created_at).toLocaleDateString('zh-CN') : '-'}</div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      agent.status === 'running' ? 'bg-green-100 text-green-700' :
+                      agent.status === 'creating' ? 'bg-blue-100 text-blue-700' :
+                      agent.status === 'error' ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {agent.status === 'running' ? '运行中' : agent.status === 'creating' ? '创建中' : agent.status === 'error' ? '异常' : agent.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-sm text-gray-500 mb-3">暂无部署的 Agent</p>
+              <Link href="/deploy" className="text-sm text-brand-600 hover:text-brand-700 font-medium">去部署平台 →</Link>
+            </div>
+          )}
+        </div>
         <div className="flex gap-2 mb-6">
           {[
             { key: 'active', label: '进行中' },
