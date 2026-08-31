@@ -202,6 +202,15 @@ export const users = {
     }),
 };
 
+export const products = {
+  list: (type?: string) => {
+    const query = type ? `?type=${encodeURIComponent(type)}` : '';
+    return request(`/products${query}`);
+  },
+  get: (id: string) => request(`/products/${id}`),
+  getSubscriptions: () => request('/products/subscriptions'),
+};
+
 export const payment = {
   // 获取支付配置（金额档位 + 可用支付方式）
   getConfig: () => request('/payment/config'),
@@ -241,5 +250,5 @@ export const payment = {
   getOrder: (orderId: string) => request(`/payment/orders/${orderId}`),
 };
 
-const api = { auth, billing, models, tasks, agents, users, payment };
+const api = { auth, billing, models, tasks, agents, users, products, payment };
 export default api;

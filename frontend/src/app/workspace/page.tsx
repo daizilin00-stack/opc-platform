@@ -5,6 +5,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { useStore } from '@/lib/store';
 import AuthGuard from '@/components/AuthGuard';
+import { CreditCard, Package, Calendar, CheckCircle2, Clock } from 'lucide-react';
 
 export default function WorkspacePage() {
   return (
@@ -21,6 +22,8 @@ function WorkspaceContent() {
   const [profile, setProfile] = useState<any>(null);
   const [wallet, setWallet] = useState<any>(null);
   const [tokenUsage, setTokenUsage] = useState<any>(null);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const user = useStore((state) => state.user);
 
   useEffect(() => {
@@ -28,14 +31,18 @@ function WorkspaceContent() {
       setLoading(true);
       setError('');
       try {
-        const [profileRes, walletRes, usageRes] = await Promise.all([
+        const [profileRes, walletRes, usageRes, subRes, ordersRes] = await Promise.all([
           api.users.getProfile().catch(() => null),
           api.billing.getWallet().catch(() => null),
           api.billing.getTokenUsage().catch(() => null),
+          api.products.getSubscriptions().catch(() => null),
+          api.payment.listOrders({ limit: 5 }).catch(() => null),
         ]);
         setProfile(profileRes);
         setWallet(walletRes);
         setTokenUsage(usageRes);
+        setSubscriptions(subRes?.subscriptions || []);
+        setOrders(ordersRes?.orders || []);
       } catch (err: any) {
         setError(err.message || '加载数据失败');
       } finally {
@@ -100,6 +107,75 @@ function WorkspaceContent() {
             </div>
           </div>
         )}
+
+        {/* 我的套餐与购买记录 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* 当前套餐 */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-4">
+              <Package className="w-5 h-5 text-brand-600" />
+              <h3 className="font-semibold text-gray-900">我的套餐</h3>
+            </div>
+            {subscriptions.length > 0 ? (
+              <div className="space-y-3">
+                {subscriptions.slice(0, 3).map((sub: any) => (
+                  <div key={sub.id} className="flex items-center justify-between p-3 bg-brand-50 rounded-lg">
+                    <div>
+                      <div className="font-medium text-gray-900">{sub.productName || '未知套餐'}</div>
+                      <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {sub.startedAt ? new Date(sub.startedAt).toLocaleDateString('zh-CN') : '-'}</span>
+                        <span>至 {sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString('zh-CN') : '-'}</span>
+                      </div>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${sub.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {sub.status === 'active' ? '生效中' : sub.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-sm text-gray-500 mb-3">暂无生效套餐</p>
+                <Link href="/pricing" className="text-sm text-brand-600 hover:text-brand-700 font-medium">去选择套餐 →</Link>
+              </div>
+            )}
+          </div>
+
+          {/* 最近购买记录 */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-brand-600" />
+                <h3 className="font-semibold text-gray-900">最近购买记录</h3>
+              </div>
+              <Link href="/wallet" className="text-sm text-brand-600 hover:text-brand-700 font-medium">查看全部 →</Link>
+            </div>
+            {orders.length > 0 ? (
+              <div className="space-y-3">
+                {orders.map((order: any) => (
+                  <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium text-gray-900">{order.orderNo}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{order.createdAt ? new Date(order.createdAt).toLocaleString('zh-CN') : '-'}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-gray-900">¥{Number(order.amount || 0).toFixed(2)}</div>
+                      <div className="text-xs text-gray-500 flex items-center gap-1 justify-end">
+                        {order.status === 'completed' ? <CheckCircle2 className="w-3 h-3 text-green-600" /> : <Clock className="w-3 h-3 text-gray-400" />}
+                        {order.status === 'completed' ? '已完成' : order.status === 'pending' ? '待支付' : order.status}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-sm text-gray-500 mb-3">暂无购买记录</p>
+                <Link href="/pricing" className="text-sm text-brand-600 hover:text-brand-700 font-medium">去购买 →</Link>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* 标签页 */}
         <div className="flex gap-2 mb-6">
