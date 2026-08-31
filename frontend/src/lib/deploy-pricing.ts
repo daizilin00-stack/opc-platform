@@ -9,6 +9,7 @@ export const DEPLOY_PACKAGES = [
     period: '月',
     agentCount: 1,
     monthlyCalls: 1000,
+    overageCallPrice: 0.099, // 超出套餐后按量单价（元/次）
     concurrentRequests: 5,
     knowledgeBases: 1,
     knowledgeBaseSize: '100MB',
@@ -30,6 +31,7 @@ export const DEPLOY_PACKAGES = [
     period: '月',
     agentCount: 5,
     monthlyCalls: 10000,
+    overageCallPrice: 0.03,
     concurrentRequests: 30,
     knowledgeBases: 3,
     knowledgeBaseSize: '1GB',
@@ -51,6 +53,7 @@ export const DEPLOY_PACKAGES = [
     period: '月',
     agentCount: 20,
     monthlyCalls: 100000,
+    overageCallPrice: 0.01,
     concurrentRequests: 200,
     knowledgeBases: 10,
     knowledgeBaseSize: '10GB',
@@ -71,6 +74,7 @@ export const DEPLOY_PACKAGES = [
     period: '定制',
     agentCount: null, // 无限
     monthlyCalls: null, // 无限
+    overageCallPrice: null, // 企业版按合同定价
     concurrentRequests: null, // 无限
     knowledgeBases: null, // 无限
     knowledgeBaseSize: '无限',
@@ -92,14 +96,14 @@ export const DEPLOY_ADDONS = [
     name: 'Agent 扩展位',
     price: 50,
     unit: '月/个',
-    description: '超出套餐后增加Agent数量',
+    description: '超出套餐后增加 Agent 数量',
   },
   {
     id: 'addon-calls',
-    name: 'API 调用包',
-    price: 10,
-    unit: '千次',
-    description: '超出套餐后增加调用次数',
+    name: 'API 调用超额',
+    price: null, // 改为分档计价，此处仅作展示占位
+    unit: '按套餐档位',
+    description: '体验版 ¥0.099/次、创业版 ¥0.03/次、团队版 ¥0.01/次，企业版另议',
   },
   {
     id: 'addon-storage',

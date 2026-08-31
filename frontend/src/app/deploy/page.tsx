@@ -314,7 +314,14 @@ export default function DeployPage() {
                 {DEPLOY_ADDONS.map((addon) => (
                   <div key={addon.id} className="bg-slate-50 rounded-lg p-4">
                     <div className="font-medium text-slate-900">{addon.name}</div>
-                    <div className="text-lg font-bold text-brand-600">¥{addon.price}<span className="text-sm font-normal text-slate-500">/{addon.unit}</span></div>
+                    <div className="text-lg font-bold text-brand-600">
+                      {addon.price !== null && addon.price !== undefined
+                        ? `¥${addon.price}`
+                        : addon.unit}
+                      {addon.price !== null && addon.price !== undefined && (
+                        <span className="text-sm font-normal text-slate-500">/{addon.unit}</span>
+                      )}
+                    </div>
                     <div className="text-xs text-slate-500 mt-1">{addon.description}</div>
                   </div>
                 ))}
@@ -603,13 +610,15 @@ function CalculatorTab({ isLoggedIn }: { isLoggedIn: boolean }) {
 
   const plan = recommended;
 
-  // 超额资源费
+  // 超额资源费（按当前套餐档位计价）
   const extraAgentCount = Math.max(0, agents - (plan.agentCount ?? Infinity));
   const extraCallCount = Math.max(0, calls - (plan.monthlyCalls ?? Infinity));
   const extraTeamCount = Math.max(0, team - (plan.teamSize ?? Infinity));
 
   const extraAgentCost = extraAgentCount * 50;
-  const extraCallCost = (extraCallCount / 1000) * 10;
+  // 调用超额按套餐档位单价：体验版 ¥0.099/次，创业版 ¥0.03/次，团队版 ¥0.01/次
+  const callOverageUnitPrice = plan.overageCallPrice ?? 0.01;
+  const extraCallCost = extraCallCount * callOverageUnitPrice;
   const extraTeamCost = extraTeamCount * 30;
   const extraResourceCost = extraAgentCost + extraCallCost + extraTeamCost;
 
@@ -683,7 +692,7 @@ function CalculatorTab({ isLoggedIn }: { isLoggedIn: boolean }) {
 
         <div className="space-y-2 text-sm text-slate-600 mb-4">
           <CostRow label="套餐订阅费" value={subscriptionCost} />
-          <CostRow label="超额资源费" value={extraResourceCost} detail={`Agent +${extraAgentCount}，调用 +${extraCallCount.toLocaleString()}，成员 +${extraTeamCount}`} />
+          <CostRow label="超额资源费" value={extraResourceCost} detail={`Agent +${extraAgentCount}，调用 +${extraCallCount.toLocaleString()} 次 × ¥${callOverageUnitPrice}/次，成员 +${extraTeamCount}`} />
           <CostRow
             label="模型 Token 费用"
             value={tokenCost}
