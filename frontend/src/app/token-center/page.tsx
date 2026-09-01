@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TOKEN_PACKAGES, MODEL_PRICING, MODEL_PRICING_DISPLAY } from '@/lib/pricing';
 import { useStore } from '@/lib/store';
+import api from '@/lib/api';
+import { Loader2, PieChart, TrendingUp, Layers, History, ArrowRight } from 'lucide-react';
 
 export default function TokenCenterPage() {
   const router = useRouter();
@@ -15,6 +17,31 @@ export default function TokenCenterPage() {
   const isLoggedIn = useStore((state) => state.isLoggedIn);
 
   const [showAllModels, setShowAllModels] = useState(false);
+  const [usageSummary, setUsageSummary] = useState<any>(null);
+  const [usageDetails, setUsageDetails] = useState<any[]>([]);
+  const [usageLoading, setUsageLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'usage') {
+      fetchUsage();
+    }
+  }, [activeTab]);
+
+  const fetchUsage = async () => {
+    setUsageLoading(true);
+    try {
+      const [usageRes, detailRes] = await Promise.all([
+        api.billing.getTokenUsage('current_month'),
+        api.billing.getTokenDetails(10, 0),
+      ]);
+      setUsageSummary(usageRes);
+      setUsageDetails(detailRes.items || []);
+    } catch (err) {
+      console.error('加载用量失败:', err);
+    } finally {
+      setUsageLoading(false);
+    }
+  };
 
   const handleBuy = (productId: string) => {
     if (!isLoggedIn) {
@@ -280,12 +307,116 @@ export default function TokenCenterPage() {
 
         {/* Usage Tab */}
         {activeTab === 'usage' && (
-          <div className="text-center py-16">
-            <p className="text-slate-500 mb-4">用量详情请在登录后查看</p>
-            {isLoggedIn ? (
-              <Link href="/workspace" className="btn-primary">前往工作台查看</Link>
+          <div className="max-w-4xl mx-auto">
+            {usageLoading ? (
+              <div className="card bg-white text-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-brand-600 mx-auto mb-4" />
+                <p className="text-slate-500">加载用量数据中...</p>
+              </div>
+            ) : !isLoggedIn ? (
+              <div className="text-center py-16">
+                <p className="text-slate-500 mb-4">用量详情请在登录后查看</p>
+                <Link href="/login" className="btn-primary">登录查看</Link>
+              </div>
             ) : (
-              <Link href="/login" className="btn-primary">登录查看</Link>
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="card bg-white text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2 text-slate-500 text-sm">
+                      <Layers className="w-4 h-4" /> 总 Token
+                    </div>
+                    <div className="text-2xl font-bold text-slate-900">
+                      {(usageSummary?.summary?.total_tokens || 0).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="card bg-white text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2 text-slate-500 text-sm">
+                      <TrendingUp className="w-4 h-4" /> 总费用
+                    </div>
+                    <div className="text-2xl font-bold text-brand-600">
+                      ¥{Number(usageSummary?.summary?.total_cost || 0).toFixed(4)}
+                    </div>
+                  </div>
+                  <div className="card bg-white text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2 text-slate-500 text-sm">
+                      <History className="w-4 h-4" /> 调用次数
+                    </div>
+                    <div className="text-2xl font-bold text-slate-900">
+                      {(usageSummary?.summary?.total_calls || 0).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Model Breakdown */}
+                <div className="card bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <PieChart className="w-5 h-5 text-brand-600" />
+                      <h3 className="font-semibold text-slate-900">按模型分布</h3>
+                    </div>
+                    <Link href="/token-usage" className="text-sm text-brand-600 hover:text-brand-700 flex items-center gap-1">
+                      查看明细 <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                  {(usageSummary?.details || []).length === 0 ? (
+                    <div className="text-center py-8 text-slate-500">
+                      <p className="text-sm">本月暂无调用记录</p>
+                      <Link href="/playground" className="text-brand-600 hover:text-brand-700 text-sm mt-2 inline-block">
+                        去模型体验中心 →
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {(usageSummary?.details || []).map((item: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                          <div>
+                            <div className="font-medium text-slate-900 text-sm">{item.model_name}</div>
+                            <div className="text-xs text-slate-500">{item.total_tokens.toLocaleString()} tokens</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-semibold text-brand-600 text-sm">¥{Number(item.total_cost).toFixed(4)}</div>
+                            <div className="text-xs text-slate-400">{item.prompt_tokens.toLocaleString()} + {item.completion_tokens.toLocaleString()}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Recent Calls */}
+                <div className="card bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <History className="w-5 h-5 text-brand-600" />
+                      <h3 className="font-semibold text-slate-900">最近调用</h3>
+                    </div>
+                    <Link href="/token-usage" className="text-sm text-brand-600 hover:text-brand-700">查看全部 →</Link>
+                  </div>
+                  {usageDetails.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500">
+                      <p className="text-sm">暂无调用记录</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {usageDetails.map((item: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                          <div>
+                            <div className="font-medium text-slate-900 text-sm">{item.model_name}</div>
+                            <div className="text-xs text-slate-500">
+                              {item.created_at ? new Date(item.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
+                            </div>
+                          </div>
+                          <div className="text-right text-sm">
+                            <span className="font-medium text-slate-900">{item.total_tokens.toLocaleString()} tokens</span>
+                            <span className="ml-3 text-brand-600 font-medium">¥{Number(item.cost_cny).toFixed(4)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         )}
