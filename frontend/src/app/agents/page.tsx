@@ -1,7 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
+import api from '@/lib/api';
+import {
+  Send,
+  Loader2,
+  Bot,
+  User,
+  Zap,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+} from 'lucide-react';
 
 interface Agent {
   id: string;
@@ -11,6 +23,22 @@ interface Agent {
   description: string;
   capabilities: string[];
   status: 'active' | 'busy' | 'standby';
+}
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  loading?: boolean;
+  error?: string;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  cost?: number;
+  latency?: number;
+  model?: string;
 }
 
 const agents: Agent[] = [
@@ -80,65 +108,128 @@ export default function AgentsPage() {
 
 function AgentsContent() {
   const [activeSession, setActiveSession] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Record<string, string[]>>({});
+  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
   const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const invokeAgent = (agentCode: string) => {
     setActiveSession(agentCode);
-    if (!messages[agentCode]) {
+    setError(null);
+    if (!messages[agentCode] || messages[agentCode].length === 0) {
       const agent = agents.find(a => a.code === agentCode);
       setMessages(prev => ({
         ...prev,
-        [agentCode]: [`您好，我是${agent?.name}，已就绪。请告诉我您需要什么帮助？`]
+        [agentCode]: [{
+          id: 'welcome',
+          role: 'assistant',
+          content: `您好，我是${agent?.name}，已就绪。请告诉我您需要什么帮助？`
+        }]
       }));
     }
   };
 
-  const sendMessage = () => {
-    if (!activeSession || !input.trim()) return;
+  const sendMessage = async () => {
+    if (!activeSession || !input.trim() || sending) return;
+
+    const userContent = input.trim();
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: userContent,
+    };
+
+    const loadingMessage: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: '',
+      loading: true,
+    };
+
     setMessages(prev => ({
       ...prev,
-      [activeSession]: [...(prev[activeSession] || []), `创业者：${input}`]
+      [activeSession]: [...(prev[activeSession] || []), userMessage, loadingMessage],
     }));
     setInput('');
-    // TODO: 实际调用 Agent API
-    setTimeout(() => {
-      setMessages(prev => ({
-        ...prev,
-        [activeSession]: [...(prev[activeSession] || []), `${agents.find(a => a.code === activeSession)?.name}：收到，正在为您处理...`]
-      }));
-    }, 500);
+    setSending(true);
+    setError(null);
+
+    const startTime = Date.now();
+
+    try {
+      const data = await api.agents.invoke(activeSession, userContent);
+
+      setMessages(prev => {
+        const sessionMessages = prev[activeSession] || [];
+        const updated = [...sessionMessages];
+        const lastIdx = updated.length - 1;
+        if (updated[lastIdx]?.loading) {
+          updated[lastIdx] = {
+            id: updated[lastIdx].id,
+            role: 'assistant',
+            content: data.response?.text || '（无回复内容）',
+            usage: data.usage,
+            cost: data.cost?.costCny,
+            latency: Date.now() - startTime,
+            model: data.model,
+          };
+        }
+        return { ...prev, [activeSession]: updated };
+      });
+    } catch (err: any) {
+      const errMsg = err.message || '调用失败，请稍后重试';
+      setError(errMsg);
+      setMessages(prev => {
+        const sessionMessages = prev[activeSession] || [];
+        const updated = [...sessionMessages];
+        const lastIdx = updated.length - 1;
+        if (updated[lastIdx]?.loading) {
+          updated[lastIdx] = {
+            id: updated[lastIdx].id,
+            role: 'assistant',
+            content: '',
+            error: errMsg,
+          };
+        }
+        return { ...prev, [activeSession]: updated };
+      });
+    } finally {
+      setSending(false);
+    }
   };
 
+  const activeAgent = agents.find(a => a.code === activeSession);
+  const currentMessages = activeSession ? (messages[activeSession] || []) : [];
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Agent 列表 */}
           <div className="lg:col-span-1 space-y-4">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">召唤数字员工</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-4">召唤数字员工</h2>
             {agents.map(agent => (
               <button
                 key={agent.id}
                 onClick={() => invokeAgent(agent.code)}
                 className={`w-full text-left card p-4 hover:shadow-md transition-shadow ${
-                  activeSession === agent.code ? 'ring-2 ring-brand-500' : ''
+                  activeSession === agent.code ? 'ring-2 ring-brand-500 bg-brand-50' : 'bg-white'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className="text-3xl">{agent.icon}</div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-gray-900">{agent.name}</h3>
+                      <h3 className="font-bold text-slate-900">{agent.name}</h3>
                       <span className={`px-2 py-0.5 text-xs rounded-full ${
                         agent.status === 'active' ? 'bg-green-100 text-green-700' :
                         agent.status === 'busy' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-600'
+                        'bg-slate-100 text-slate-600'
                       }`}>
                         {agent.status === 'active' ? '在线' : agent.status === 'busy' ? '忙碌' : '待命'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500">{agent.description}</p>
+                    <p className="text-sm text-slate-500">{agent.description}</p>
                   </div>
                 </div>
               </button>
@@ -148,45 +239,131 @@ function AgentsContent() {
           {/* 对话面板 */}
           <div className="lg:col-span-2">
             {activeSession ? (
-              <div className="card h-[600px] flex flex-col">
-                <div className="border-b border-gray-100 pb-4 mb-4">
-                  <h3 className="font-bold text-gray-900">
-                    {agents.find(a => a.code === activeSession)?.icon} {' '}
-                    {agents.find(a => a.code === activeSession)?.name}
-                  </h3>
+              <div className="card h-[650px] flex flex-col bg-white">
+                <div className="border-b border-slate-100 pb-4 mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl">{activeAgent?.icon}</div>
+                    <div>
+                      <h3 className="font-bold text-slate-900">{activeAgent?.name}</h3>
+                      <p className="text-xs text-slate-500">{activeAgent?.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Zap className="w-3 h-3" />
+                    按实际 Token 消耗计费
+                  </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-                  {(messages[activeSession] || []).map((msg, i) => (
-                    <div key={i} className={`p-3 rounded-lg ${
-                      msg.startsWith('创业者') 
-                        ? 'bg-brand-50 ml-8' 
-                        : 'bg-gray-50 mr-8'
-                    }`}>
-                      <p className="text-sm text-gray-700">{msg}</p>
+                {error && (
+                  <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
+                  {currentMessages.map((msg, i) => (
+                    <div key={msg.id || i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} flex gap-3`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          msg.role === 'user' ? 'bg-brand-600' : 'bg-slate-100'
+                        }`}>
+                          {msg.role === 'user' ? (
+                            <User className="w-4 h-4 text-white" />
+                          ) : (
+                            <Bot className="w-4 h-4 text-brand-600" />
+                          )}
+                        </div>
+                        <div className={`${
+                          msg.role === 'user'
+                            ? 'bg-brand-600 text-white rounded-2xl rounded-tr-sm'
+                            : 'bg-slate-100 text-slate-900 rounded-2xl rounded-tl-sm'
+                        } px-4 py-3`}
+                        >
+                          {msg.loading ? (
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <Loader2 className="w-4 h-4 animate-spin text-brand-600" />
+                              <span>{activeAgent?.name}正在思考中...</span>
+                            </div>
+                          ) : msg.error ? (
+                            <div className="flex items-center gap-2 text-red-600 text-sm">
+                              <AlertCircle className="w-4 h-4" />
+                              {msg.error}
+                            </div>
+                          ) : (
+                            <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</div>
+                          )}
+
+                          {/* Usage & Cost */}
+                          {msg.role === 'assistant' && !msg.loading && !msg.error && msg.usage && (
+                            <div className="mt-3 pt-3 border-t border-slate-200/60 flex flex-wrap items-center gap-2 text-xs">
+                              <span className="px-2 py-1 bg-white rounded text-slate-600">
+                                {msg.model}
+                              </span>
+                              <span className="px-2 py-1 bg-white rounded text-slate-600 flex items-center gap-1">
+                                <Zap className="w-3 h-3" />
+                                {msg.usage.total_tokens} tokens
+                              </span>
+                              <span className="px-2 py-1 bg-green-50 text-green-700 rounded font-medium">
+                                ¥{msg.cost?.toFixed(4)}
+                              </span>
+                              {msg.latency && (
+                                <span className="px-2 py-1 bg-white rounded text-slate-500 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {msg.latency}ms
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                    placeholder={`向 ${agents.find(a => a.code === activeSession)?.name} 发送指令...`}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                  />
-                  <button onClick={sendMessage} className="btn-primary px-6">
-                    发送
-                  </button>
+                <div className="border-t border-slate-100 pt-4">
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={e => setInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                      disabled={sending}
+                      placeholder={`向 ${activeAgent?.name} 发送指令...`}
+                      className="flex-1 px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 disabled:bg-slate-50"
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={!input.trim() || sending}
+                      className="btn-primary px-6 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {sending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          处理中
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          发送
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
+                    <span>按 Enter 发送 · 余额不足时将无法调用</span>
+                    <Link href="/token-usage" className="text-brand-600 hover:text-brand-700">查看 Token 明细 →</Link>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="card h-[600px] flex items-center justify-center text-gray-400">
+              <div className="card h-[650px] flex items-center justify-center text-slate-400 bg-white">
                 <div className="text-center">
-                  <div className="text-4xl mb-4">🤖</div>
-                  <p>点击左侧数字员工开始对话</p>
+                  <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Bot className="w-10 h-10 text-slate-300" />
+                  </div>
+                  <p className="text-lg font-medium text-slate-600 mb-2">点击左侧数字员工开始对话</p>
+                  <p className="text-sm text-slate-400">每次对话将按实际 Token 消耗从钱包扣费</p>
                 </div>
               </div>
             )}

@@ -118,10 +118,10 @@ export const tasks = {
 
 export const agents = {
   list: () => request('/agents'),
-  invoke: (agentType: string, prompt: string) =>
+  invoke: (agentType: string, message: string) =>
     request('/agents/invoke', {
       method: 'POST',
-      body: JSON.stringify({ agentType, prompt }),
+      body: JSON.stringify({ agentType, message }),
     }),
 };
 
