@@ -77,8 +77,7 @@ class DeployService {
         `-e AGENT_ID=${agentId}`,
         `-e MODEL_PROVIDER=opc`,
         `-e MODEL_BASE_URL=${opcApiBase}`,
-        `-e MODEL_API_KEY=***
-        `-e SYSTEM_PROMPT=${(config.system_prompt || '').replace(/"/g, '\\"')}`,
+        `-e MODEL_API_KEY=${apiKey}`,
         `-e MODEL=${config.model || 'gpt-5.4-mini'}`
       ];
 
